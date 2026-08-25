@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#d9eefa">
 <title>音宝和轩宝的情侣小网站</title>
-<link rel="stylesheet" href="css/style.css?v=3">
+<link rel="stylesheet" href="css/style.css?v=4">
 </head>
 <body>
 
@@ -21,9 +21,18 @@
     <!-- 首页：在一起天数 + 每日一问 + 吵架和好卡 + 纪念日 -->
     <section id="page-home" class="page active">
       <div class="home-hero card">
-        <div class="hero-label">我们在一起</div>
-        <div class="hero-days" id="daysTogether">—</div>
-        <div class="hero-sub" id="daysSub">…</div>
+        <div class="hero-main">
+          <div class="hero-left">
+            <div class="hero-date" id="curDate"></div>
+            <div class="hero-clock" id="curClock">--:--:--</div>
+            <div class="hero-weather" id="curWeather"></div>
+          </div>
+          <div class="hero-right">
+            <div class="hero-label">我们在一起</div>
+            <div class="hero-days" id="daysTogether">—</div>
+            <div class="hero-sub" id="daysSub">…</div>
+          </div>
+        </div>
         <div class="hero-motto" id="homeMotto"></div>
       </div>
 
@@ -112,6 +121,8 @@
         <input id="setStart" type="date">
         <label>我们的主题语</label>
         <input id="setMotto" placeholder="一句属于你们的话">
+        <label>所在城市（首页看天气）</label>
+        <input id="setCity" placeholder="如：永州">
         <button class="btn-main" id="btnSaveProfile">保存</button>
       </div>
 
@@ -171,8 +182,8 @@
 
 <div id="toast"></div>
 
-<script src="js/config.js?v=3"></script>
-<script src="js/store.js?v=3"></script>
-<script src="js/app.js?v=3"></script>
+<script src="js/config.js?v=4"></script>
+<script src="js/store.js?v=4"></script>
+<script src="js/app.js?v=4"></script>
 </body>
 </html>
