@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#d9eefa">
+<title>音宝和轩宝的情侣小网站</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <header class="topbar">
+    <div class="brand"><span class="heart"></span>音宝和轩宝</div>
+    <button id="cloudDot" class="cloud-dot" data-tab="mine" title="云端状态"></button>
+  </header>
+
+  <main>
+
+    <!-- 首页：在一起天数 + 每日一问 + 吵架和好卡 + 纪念日 -->
+    <section id="page-home" class="page active">
+      <div class="home-hero card">
+        <div class="hero-label">我们在一起</div>
+        <div class="hero-days" id="daysTogether">—</div>
+        <div class="hero-sub" id="daysSub">…</div>
+        <div class="hero-motto" id="homeMotto"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title dq-title">
+          <span>每日一问</span>
+          <button class="btn-ghost btn-small" id="btnChangeQ">换一题</button>
+        </div>
+        <div class="dq-question" id="dqQuestion"></div>
+        <div class="dq-answer-wrap">
+          <input id="dqInput" placeholder="写下你的回答…" autocomplete="off">
+          <button class="btn-main" id="btnDqSubmit">回答</button>
+        </div>
+        <div id="dqList"></div>
+      </div>
+
+      <div class="card fight-card" id="fightCard"></div>
+
+      <div class="section-head">
+        <span>纪念日</span>
+        <button class="icon-btn" id="btnAddAnniv">＋</button>
+      </div>
+      <div id="annivList" class="anniv-list"></div>
+    </section>
+
+    <!-- 留言：小纸条 -->
+    <section id="page-notes" class="page">
+      <div class="composer card">
+        <input id="noteInput" placeholder="写点想说的，发给 TA…" autocomplete="off">
+        <button class="btn-main" id="btnSendNote">发送</button>
+      </div>
+      <div id="replyHint" class="reply-hint" hidden></div>
+      <div id="noteList" class="note-list"></div>
+    </section>
+
+    <!-- 心愿：心愿清单 + 小确幸日记 -->
+    <section id="page-wish" class="page">
+      <div class="seg" id="wishSeg">
+        <button data-seg="wish" class="on">心愿清单</button>
+        <button data-seg="moment">小确幸日记</button>
+      </div>
+      <div id="wishPanel" class="panel">
+        <div class="row">
+          <input id="wishInput" placeholder="想和你一起…" autocomplete="off">
+          <button class="btn-main" id="btnAddWish">＋</button>
+        </div>
+        <div id="wishList"></div>
+      </div>
+      <div id="momentPanel" class="panel" hidden>
+        <div class="row">
+          <input id="momentInput" placeholder="今天的一件小开心…" autocomplete="off">
+          <button class="btn-main" id="btnAddMoment">＋</button>
+        </div>
+        <div id="momentList"></div>
+      </div>
+    </section>
+
+    <!-- 照片：照片墙 -->
+    <section id="page-photos" class="page">
+      <div class="section-head">
+        <span>照片墙</span>
+        <button class="icon-btn" id="btnAddPhoto">＋</button>
+      </div>
+      <input type="file" id="photoFile" accept="image/*" hidden>
+      <div id="photoGrid" class="photo-grid"></div>
+    </section>
+
+    <!-- 时光：时光轴 -->
+    <section id="page-timeline" class="page">
+      <div class="section-head">
+        <span>我们的时光</span>
+        <button class="icon-btn" id="btnAddEvent">＋</button>
+      </div>
+      <div id="timelineList" class="timeline"></div>
+    </section>
+
+    <!-- 我的：设置 -->
+    <section id="page-mine" class="page">
+      <div class="card form-card">
+        <div class="form-title">我们</div>
+        <label>我的昵称</label>
+        <input id="setMe" placeholder="你叫什么">
+        <label>TA 的昵称</label>
+        <input id="setTa" placeholder="TA 叫什么">
+        <label>在一起的日子</label>
+        <input id="setStart" type="date">
+        <label>我们的主题语</label>
+        <input id="setMotto" placeholder="一句属于你们的话">
+        <button class="btn-main" id="btnSaveProfile">保存</button>
+      </div>
+
+      <div class="card form-card">
+        <div class="form-title">我现在是</div>
+        <div class="seg" id="identitySeg"></div>
+        <div class="hint">写留言、记心愿时用这个身份署名。两人各用各的。</div>
+      </div>
+
+      <div class="card form-card">
+        <div class="form-title">云端同步</div>
+        <div id="cloudStatus" class="cloud-status"></div>
+        <div class="row row-gap">
+          <button class="btn-ghost" id="btnCloudConfig">云端设置</button>
+          <button class="btn-ghost" id="btnRefresh">刷新数据</button>
+        </div>
+        <div class="hint">填入同一个 Bmob 应用的密钥，两人就能实时看到一样的内容。</div>
+      </div>
+
+      <div class="card form-card">
+        <div class="form-title">数据</div>
+        <button class="btn-ghost danger" id="btnClearLocal">清空本地缓存数据</button>
+        <div class="hint">只清除当前设备上的缓存，不影响云端和 TA 的设备。</div>
+      </div>
+
+      <div class="about">音宝和轩宝的情侣小网站 · 把日子过成喜欢的样子。</div>
+    </section>
+
+  </main>
+
+  <nav class="tabbar" id="tabbar">
+    <button data-tab="home" class="on">首页</button>
+    <button data-tab="notes">留言</button>
+    <button data-tab="wish">心愿</button>
+    <button data-tab="photos">照片</button>
+    <button data-tab="timeline">时光</button>
+    <button data-tab="mine">我的</button>
+  </nav>
+</div>
+
+<!-- 弹窗 -->
+<div id="modalWrap" class="modal-wrap" hidden>
+  <div class="modal">
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<!-- 照片查看大图 -->
+<div id="lightbox" class="lightbox" hidden>
+  <img id="lbImg" src="" alt="">
+  <div id="lbMeta" class="lb-meta"></div>
+  <div class="lb-btns">
+    <button id="lbClose" class="lb-close">关闭</button>
+    <button id="lbDel" class="lb-del">删除</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
