@@ -53,6 +53,7 @@ var state = {
   wishes: [],
   moments: [],
   photos: [],
+  photochunks: [],
   answers: [],
   fight: null,
   daily: null,
@@ -69,7 +70,8 @@ function loadAll() {
   return Promise.all([
     Data.getAll('profile'), Data.getAll('timeline'), Data.getAll('messages'),
     Data.getAll('anniversaries'), Data.getAll('wishes'), Data.getAll('moments'),
-    Data.getAll('photos'), Data.getAll('answers'), Data.getAll('fight'), Data.getAll('daily')
+    Data.getAll('photos'), Data.getAll('answers'), Data.getAll('fight'), Data.getAll('daily'),
+    Data.getAll('photochunks')
   ]).then(function (r) {
     state.profile = r[0][0] || defaults();
     state.timeline = r[1].sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
@@ -81,9 +83,27 @@ function loadAll() {
     state.answers = r[7];
     state.fight = r[8][0] || null;
     state.daily = r[9][0] || null;
+    state.photochunks = r[10];
+    assemblePhotos();
     render();
   }).catch(function (e) {
     toast('数据加载失败：' + (e && e.message ? e.message : e));
+  });
+}
+
+// 照片分块拼回完整图。云端照片拆成多块存（避开单条 40KB 限制），本地模式则直接存整张。
+function assemblePhotos() {
+  var map = {};
+  (state.photochunks || []).forEach(function (c) {
+    if (!map[c.photoId]) map[c.photoId] = [];
+    map[c.photoId].push(c);
+  });
+  state.photos.forEach(function (p) {
+    var cs = map[p.photoId];
+    if (cs && cs.length) {
+      cs.sort(function (a, b) { return (a.idx || 0) - (b.idx || 0); });
+      p.data = cs.map(function (c) { return c.data || ''; }).join('');
+    }
   });
 }
 
@@ -451,6 +471,25 @@ function fileToDataUrl(file, cb) {
   reader.readAsDataURL(file);
 }
 
+// 保存照片。云端把 base64 拆成小块存进 PhotoChunk（每块远小于 40KB 限制），
+// 再存一张带 photoId 的记录；本地模式直接整张存。
+function savePhoto(meta) {
+  if (!Data.cloudMode()) return Data.save('photos', meta);
+  var CHUNK = 24000;
+  var data = meta.data;
+  var photoId = 'ph_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  var n = Math.max(1, Math.ceil(data.length / CHUNK));
+  var saved = [];
+  for (var i = 0; i < n; i++) {
+    saved.push(Data.save('photochunks', {
+      photoId: photoId, idx: i, data: data.slice(i * CHUNK, (i + 1) * CHUNK)
+    }));
+  }
+  return Promise.all(saved).then(function () {
+    return Data.save('photos', { author: meta.author, caption: meta.caption, photoId: photoId, partCount: n });
+  });
+}
+
 function handlePhotoFile() {
   var input = $('#photoFile');
   var file = input.files && input.files[0];
@@ -467,9 +506,9 @@ function handlePhotoFile() {
       function () {
         var caption = $('#mPhotoCaption').value.trim();
         try {
-          Data.save('photos', { author: state.myName, caption: caption, data: data })
+          savePhoto({ author: state.myName, caption: caption, data: data })
             .then(function () { closeModal(); return loadAll(); })
-            .catch(function () { toast('保存失败：照片还是太大，换一张试试'); });
+            .catch(function () { toast('保存失败，请检查网络后重试'); });
         } catch (e) {
           toast('保存失败：本地空间不足，清理一些旧照片试试');
         }
@@ -497,7 +536,13 @@ function closeLightbox() {
 function delPhoto() {
   if (!lbPhotoId) return;
   if (!confirm('删除这张照片？')) return;
-  Data.remove('photos', lbPhotoId).then(function () { closeLightbox(); return loadAll(); });
+  var photo = state.photos.find(function (x) { return x.id === lbPhotoId; });
+  var tasks = [Data.remove('photos', lbPhotoId)];
+  if (Data.cloudMode() && photo && photo.photoId) {
+    (state.photochunks || []).filter(function (c) { return c.photoId === photo.photoId; })
+      .forEach(function (c) { tasks.push(Data.remove('photochunks', c.id)); });
+  }
+  Promise.all(tasks).then(function () { closeLightbox(); return loadAll(); });
 }
 
 // ---------- 我的 ----------
