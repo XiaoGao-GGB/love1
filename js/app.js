@@ -420,22 +420,34 @@ function pickPhoto() {
   $('#photoFile').click();
 }
 
-function fileToDataUrl(file, maxW, cb) {
+function fileToDataUrl(file, cb) {
   var reader = new FileReader();
   reader.onload = function (e) {
     var img = new Image();
     img.onload = function () {
-      var scale = Math.min(1, maxW / img.width);
-      var w = Math.round(img.width * scale);
-      var h = Math.round(img.height * scale);
-      var canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      cb(canvas.toDataURL('image/jpeg', 0.72));
+      // 目标：压缩后 base64 不超过约 200KB，避免超出 Bmob 单条数据大小限制。
+      // 先按 800px/0.6 压一次，还超标就不断缩小尺寸和画质，直到达标。
+      var MAX_B64 = 200 * 1024;
+      var maxW = 800, q = 0.6, data;
+      for (;;) {
+        var scale = Math.min(1, maxW / img.width);
+        var w = Math.max(1, Math.round(img.width * scale));
+        var h = Math.max(1, Math.round(img.height * scale));
+        var canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        data = canvas.toDataURL('image/jpeg', q);
+        if (data.length <= MAX_B64 || maxW <= 240) break;
+        maxW = Math.round(maxW * 0.7);
+        q = Math.max(0.4, q - 0.1);
+      }
+      cb(data);
     };
+    img.onerror = function () { cb(null); };
     img.src = e.target.result;
   };
+  reader.onerror = function () { cb(null); };
   reader.readAsDataURL(file);
 }
 
@@ -444,7 +456,8 @@ function handlePhotoFile() {
   var file = input.files && input.files[0];
   input.value = '';
   if (!file) return;
-  fileToDataUrl(file, 900, function (data) {
+  fileToDataUrl(file, function (data) {
+    if (!data) { toast('这张照片打不开，换一张试试'); return; }
     openModal(
       '<div class="modal-title">加上一张照片</div>' +
       '<img src="' + data + '" class="modal-photo-preview" alt="">' +
@@ -456,7 +469,7 @@ function handlePhotoFile() {
         try {
           Data.save('photos', { author: state.myName, caption: caption, data: data })
             .then(function () { closeModal(); return loadAll(); })
-            .catch(function () { toast('保存失败：照片太大或太多，换一张小点的试试'); });
+            .catch(function () { toast('保存失败：照片还是太大，换一张试试'); });
         } catch (e) {
           toast('保存失败：本地空间不足，清理一些旧照片试试');
         }
