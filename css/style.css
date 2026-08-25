@@ -230,10 +230,28 @@ main { padding: 12px 16px 96px; }
 .home-hero {
   background: linear-gradient(135deg, #dfeffb, #f6fbfe);
   text-align: center;
-  padding: 30px 20px;
+  padding: 24px 20px;
 }
+.hero-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.hero-left { flex: 1; min-width: 0; text-align: left; }
+.hero-right { flex: 1; text-align: right; }
+.hero-date { font-size: 12px; color: #5f8298; letter-spacing: 0.5px; }
+.hero-clock {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.hero-weather { font-size: 12px; color: #6f8ba0; margin-top: 6px; min-height: 16px; }
 .hero-label { font-size: 13px; color: #5f8298; letter-spacing: 2px; }
-.hero-days { font-size: 58px; font-weight: 700; color: var(--primary); margin: 6px 0 4px; }
+.hero-days { font-size: 44px; font-weight: 700; color: var(--primary); margin: 6px 0 4px; }
 .hero-sub { font-size: 13px; color: #6f8ba0; }
 .hero-motto { margin-top: 16px; font-size: 13px; color: #a8877b; }
 
