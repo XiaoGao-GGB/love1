@@ -70,8 +70,7 @@ function loadAll() {
   return Promise.all([
     Data.getAll('profile'), Data.getAll('timeline'), Data.getAll('messages'),
     Data.getAll('anniversaries'), Data.getAll('wishes'), Data.getAll('moments'),
-    Data.getAll('photos'), Data.getAll('answers'), Data.getAll('fight'), Data.getAll('daily'),
-    Data.getAll('photochunks')
+    Data.getAll('photos'), Data.getAll('answers'), Data.getAll('fight'), Data.getAll('daily')
   ]).then(function (r) {
     state.profile = r[0][0] || defaults();
     state.timeline = r[1].sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
@@ -83,8 +82,6 @@ function loadAll() {
     state.answers = r[7];
     state.fight = r[8][0] || null;
     state.daily = r[9][0] || null;
-    state.photochunks = r[10];
-    assemblePhotos();
     render();
   }).catch(function (e) {
     toast('数据加载失败：' + (e && e.message ? e.message : e));
@@ -104,6 +101,17 @@ function assemblePhotos() {
       cs.sort(function (a, b) { return (a.idx || 0) - (b.idx || 0); });
       p.data = cs.map(function (c) { return c.data || ''; }).join('');
     }
+  });
+}
+
+// 只在进入照片页时拉取照片分块（分块是整张图片，比较占流量）
+function loadPhotoChunks() {
+  return Data.getAll('photochunks').then(function (chunks) {
+    state.photochunks = chunks;
+    assemblePhotos();
+    renderPhotos();
+  }).catch(function (e) {
+    toast('照片加载失败：' + (e && e.message ? e.message : e));
   });
 }
 
@@ -500,6 +508,7 @@ function renderPhotos() {
     return;
   }
   grid.innerHTML = state.photos.map(function (p) {
+    if (!p.data) return '<div class="photo-thumb loading" data-photo="' + esc(p.id) + '"></div>';
     return '<div class="photo-thumb" data-photo="' + esc(p.id) + '">' +
       '<img src="' + p.data + '" alt="">' +
       (p.caption ? '<div class="photo-caption">' + esc(p.caption) + '</div>' : '') +
@@ -579,6 +588,7 @@ function handlePhotoFile() {
         try {
           savePhoto({ author: state.myName, caption: caption, data: data })
             .then(function () { closeModal(); return loadAll(); })
+            .then(loadPhotoChunks)
             .catch(function () { toast('保存失败，请检查网络后重试'); });
         } catch (e) {
           toast('保存失败：本地空间不足，清理一些旧照片试试');
@@ -613,7 +623,7 @@ function delPhoto() {
     (state.photochunks || []).filter(function (c) { return c.photoId === photo.photoId; })
       .forEach(function (c) { tasks.push(Data.remove('photochunks', c.id)); });
   }
-  Promise.all(tasks).then(function () { closeLightbox(); return loadAll(); });
+  Promise.all(tasks).then(function () { closeLightbox(); return loadAll(); }).then(loadPhotoChunks);
 }
 
 // ---------- 我的 ----------
@@ -646,6 +656,8 @@ function switchTab(tab) {
   $$('.page').forEach(function (p) { p.classList.toggle('active', p.id === 'page-' + tab); });
   $$('#tabbar button').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === tab); });
   window.scrollTo(0, 0);
+  // 每次进照片页都拉一次最新照片，能看到 TA 新传的
+  if (tab === 'photos') loadPhotoChunks();
 }
 
 // ---------- 弹窗 ----------
