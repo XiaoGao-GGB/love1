@@ -90,13 +90,15 @@ var CloudStore = {
     var self = this;
     var c = getLCConfig();
     var all = [];
+    // 照片分块记录较大，一次少查几条，避免单次查询超过 200KB 限制
+    var batch = key === 'photochunks' ? 6 : 100;
     function page(skip) {
-      return fetch(self._url(c, key) + '?limit=1000&skip=' + skip + '&order=createdAt', { headers: self._headers(c) })
+      return fetch(self._url(c, key) + '?limit=' + batch + '&skip=' + skip + '&order=createdAt', { headers: self._headers(c) })
         .then(function (res) { return res.json(); })
         .then(function (data) {
           if (data.error) throw new Error(data.error);
           all = all.concat(data.results || []);
-          if ((data.results || []).length === 1000) return page(skip + 1000);
+          if ((data.results || []).length === batch) return page(skip + batch);
           return all.map(function (o) {
             var obj = {};
             Object.keys(o).forEach(function (k) { if (k !== 'objectId') obj[k] = o[k]; });
