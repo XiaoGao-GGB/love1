@@ -33,6 +33,7 @@ var COLUMNS = {
   wishes: 'Wish',
   moments: 'Moment',
   photos: 'Photo',
+  photochunks: 'PhotoChunk',
   answers: 'DailyAnswer',
   fight: 'FightState',
   daily: 'DailyQuestion'
@@ -88,18 +89,24 @@ var CloudStore = {
   getAll: function (key) {
     var self = this;
     var c = getLCConfig();
-    return fetch(this._url(c, key) + '?limit=1000&order=createdAt', { headers: this._headers(c) })
-      .then(function (res) { return res.json(); })
-      .then(function (data) {
-        if (data.error) throw new Error(data.error);
-        return (data.results || []).map(function (o) {
-          var obj = {};
-          Object.keys(o).forEach(function (k) { if (k !== 'objectId') obj[k] = o[k]; });
-          obj.id = o.objectId;
-          obj.createdAt = o.createdAt;
-          return obj;
+    var all = [];
+    function page(skip) {
+      return fetch(self._url(c, key) + '?limit=1000&skip=' + skip + '&order=createdAt', { headers: self._headers(c) })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          if (data.error) throw new Error(data.error);
+          all = all.concat(data.results || []);
+          if ((data.results || []).length === 1000) return page(skip + 1000);
+          return all.map(function (o) {
+            var obj = {};
+            Object.keys(o).forEach(function (k) { if (k !== 'objectId') obj[k] = o[k]; });
+            obj.id = o.objectId;
+            obj.createdAt = o.createdAt;
+            return obj;
+          });
         });
-      });
+    }
+    return page(0);
   },
 
   save: function (key, item) {
