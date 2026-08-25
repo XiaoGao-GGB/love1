@@ -127,6 +127,77 @@ function renderCloudDot() {
   dot.title = cloud ? '已连接云端，两人实时同步' : '本地演示模式（数据只在本机）';
 }
 
+// ---------- 实时日期时间 ----------
+var WEEK_CN = ['日', '一', '二', '三', '四', '五', '六'];
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+function updateClock() {
+  var d = new Date();
+  var elDate = $('#curDate'), elClock = $('#curClock');
+  if (!elDate || !elClock) return;
+  elDate.textContent = d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 星期' + WEEK_CN[d.getDay()];
+  elClock.textContent = pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
+}
+
+// ---------- 天气（Open-Meteo，免费免Key） ----------
+var WEATHER_CODES = {
+  0: '晴', 1: '晴间多云', 2: '多云', 3: '阴',
+  45: '雾', 48: '冻雾',
+  51: '毛毛雨', 53: '毛毛雨', 55: '毛毛雨', 56: '冻雨', 57: '冻雨',
+  61: '小雨', 63: '中雨', 65: '大雨', 66: '冻雨', 67: '冻雨',
+  71: '小雪', 73: '中雪', 75: '大雪', 77: '雪粒',
+  80: '阵雨', 81: '阵雨', 82: '强阵雨',
+  85: '阵雪', 86: '阵雪',
+  95: '雷阵雨', 96: '雷阵雨伴冰雹', 99: '雷阵雨伴强冰雹'
+};
+
+function setWeatherText(t) {
+  var el = $('#curWeather');
+  if (el) el.textContent = t || '';
+}
+
+function applyForecast(w, prefix) {
+  if (!w.current) throw new Error('noweather');
+  var t = Math.round(w.current.temperature_2m);
+  var feel = Math.round(w.current.apparent_temperature);
+  var code = WEATHER_CODES[w.current.weather_code] || '';
+  var txt = (prefix ? prefix + ' ' : '') + t + '°' + (code ? ' ' + code : '');
+  if (code && Math.abs(feel - t) >= 3) txt += ' 体感' + feel + '°';
+  setWeatherText(txt);
+}
+
+function fetchWeatherByCity(city) {
+  return fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(city) + '&count=1&language=zh')
+    .then(function (r) { return r.json(); })
+    .then(function (g) {
+      if (!g.results || !g.results.length) throw new Error('notfound');
+      var loc = g.results[0];
+      return fetch('https://api.open-meteo.com/v1/forecast?latitude=' + loc.latitude + '&longitude=' + loc.longitude +
+        '&current=temperature_2m,apparent_temperature,weather_code&timezone=auto')
+        .then(function (r) { return r.json(); })
+        .then(function (w) { applyForecast(w, loc.name); });
+    });
+}
+
+function fetchWeatherByGeo(lat, lon) {
+  return fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
+    '&current=temperature_2m,apparent_temperature,weather_code&timezone=auto')
+    .then(function (r) { return r.json(); })
+    .then(function (w) { applyForecast(w, ''); });
+}
+
+function refreshWeather() {
+  var p = state.profile || {};
+  if (p.city) {
+    fetchWeatherByCity(p.city).catch(function () { setWeatherText(''); });
+  } else if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      fetchWeatherByGeo(pos.coords.latitude, pos.coords.longitude).catch(function () { setWeatherText(''); });
+    }, function () { setWeatherText(''); });
+  } else {
+    setWeatherText('');
+  }
+}
+
 // ---------- 首页 ----------
 function nextOccurrence(dateStr, today) {
   var p = String(dateStr).split('-').map(Number);
@@ -556,6 +627,7 @@ function renderMine() {
   setField($('#setTa'), p.nicknameTa || '');
   setField($('#setStart'), p.startDate || '');
   setField($('#setMotto'), p.motto || '');
+  setField($('#setCity'), p.city || '');
 
   var me = p.nicknameMe || '我';
   var ta = p.nicknameTa || 'TA';
@@ -720,9 +792,10 @@ function saveProfile() {
     nicknameMe: $('#setMe').value.trim() || '我',
     nicknameTa: $('#setTa').value.trim() || 'TA',
     startDate: $('#setStart').value,
-    motto: $('#setMotto').value.trim()
+    motto: $('#setMotto').value.trim(),
+    city: $('#setCity').value.trim()
   });
-  Data.save('profile', p).then(function () { toast('已保存'); return loadAll(); });
+  Data.save('profile', p).then(function () { toast('已保存'); return loadAll(); }).then(refreshWeather);
 }
 
 function setIdentity(who) {
@@ -802,7 +875,10 @@ $('#photoFile').addEventListener('change', handlePhotoFile);
 // ---------- 启动 ----------
 (function init() {
   render();
-  loadAll();
+  updateClock();
+  setInterval(updateClock, 1000);
+  setInterval(refreshWeather, 30 * 60 * 1000);
+  loadAll().then(refreshWeather);
 
   // 云端模式每 12 秒自动刷新一次，接近实时同步
   setInterval(function () {
