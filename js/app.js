@@ -54,9 +54,7 @@ var state = {
   moments: [],
   photos: [],
   photochunks: [],
-  answers: [],
   fight: null,
-  daily: null,
   checkins: [],
   replyTarget: null,
   wishSeg: 'wish'
@@ -71,7 +69,7 @@ function loadAll() {
   return Promise.all([
     Data.getAll('profile'), Data.getAll('timeline'), Data.getAll('messages'),
     Data.getAll('anniversaries'), Data.getAll('wishes'), Data.getAll('moments'),
-    Data.getAll('photos'), Data.getAll('answers'), Data.getAll('fight'), Data.getAll('daily'),
+    Data.getAll('photos'), Data.getAll('fight'),
     Data.getAll('checkin')
   ]).then(function (r) {
     state.profile = r[0][0] || defaults();
@@ -81,10 +79,8 @@ function loadAll() {
     state.wishes = r[4];
     state.moments = r[5].sort(function (a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); });
     state.photos = r[6].sort(function (a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); });
-    state.answers = r[7];
-    state.fight = r[8][0] || null;
-    state.daily = r[9][0] || null;
-    state.checkins = r[10].sort(function (a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); });
+    state.fight = r[7][0] || null;
+    state.checkins = r[8].sort(function (a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); });
     render();
     updateNewBanner();
   }).catch(function (e) {
@@ -122,7 +118,6 @@ function loadPhotoChunks() {
 function render() {
   renderCloudDot();
   renderHome();
-  renderDailyQuestion();
   renderCheckin();
   renderFight();
   renderNotes();
@@ -292,7 +287,7 @@ function renderNotes() {
       '<div class="note-body">' + esc(m.content) + '</div>' +
       '<button class="note-reply" data-reply="' + esc(m.id) + '">回复</button>' +
       '<button class="note-share" data-share-note="' + esc(m.id) + '">分享</button>' +
-      '<button class="note-del" data-del-note="' + esc(m.id) + '">删除</button>' +
+      (mine ? '<button class="note-del" data-del-note="' + esc(m.id) + '">撤回</button>' : '') +
       '</div>';
   }).join('');
   renderReplyHint();
@@ -349,101 +344,6 @@ function renderTimeline() {
       '<button class="del tl-del" data-del-tl="' + esc(e.id) + '">×</button>' +
       '</div>';
   }).join('');
-}
-
-// ---------- 每日一问 ----------
-var QUESTIONS = [
-  '今天最想和我分享的一件事是什么？',
-  '你最喜欢我哪个表情？',
-  '如果明天一起休假一天，你想怎么过？',
-  '你最近一次梦到我是什么场景？',
-  '我们一起去过的地方里，你最喜欢哪个？',
-  '你觉得我什么时候最可爱？',
-  '如果我们养一只宠物，你想养什么？',
-  '你现在最想让我为你做什么？',
-  '认识我之前，你觉得爱情是什么？',
-  '你最喜欢吃我做的哪道菜？',
-  '如果要一起学一样新技能，你想学什么？',
-  '你心里有没有一直想对我说却没说出口的话？',
-  '我们吵架的时候，你希望我怎么哄你？',
-  '你最近的小目标是什么？',
-  '你会怎么向别人介绍我？',
-  '如果我们去旅行，你最想去哪里？',
-  '你眼中的我有什么优点？',
-  '你觉得最浪漫的事是什么？',
-  '你希望十年后的我们是什么样子？',
-  '我今天哪里让你心动了？',
-  '你有什么小时候的趣事想讲给我听？',
-  '如果今天是世界末日，你想和我做什么？',
-  '你最喜欢我们之间的哪个瞬间？',
-  '你现在最想要什么？',
-  '你觉得我做过的哪件事最让你感动？',
-  '我们的关系里，你最珍惜什么？',
-  '你最近有没有因为什么事偷偷开心？',
-  '如果有一天我不开心，你希望我怎么告诉你？',
-  '你理想中的周末是什么样？',
-  '你有多喜欢我？用一个比喻形容'
-];
-
-function autoDailyQuestion() {
-  var now = new Date();
-  var start = new Date(now.getFullYear(), 0, 0);
-  var doy = Math.floor((now - start) / 86400000);
-  return QUESTIONS[doy % QUESTIONS.length];
-}
-
-// 有人手动换过题就优先显示换的题，否则按日期自动出题
-function currentQuestion() {
-  if (state.daily && state.daily.date === todayStr()) return state.daily.question;
-  return autoDailyQuestion();
-}
-
-function changeQuestion() {
-  var current = currentQuestion();
-  var q;
-  do {
-    q = QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
-  } while (q === current && QUESTIONS.length > 1);
-  var base = (state.daily && state.daily.date === todayStr()) ? state.daily : { date: todayStr() };
-  Data.save('daily', Object.assign({}, base, {
-    date: todayStr(),
-    question: q,
-    changedBy: state.myName
-  })).then(function () {
-    toast('换题成功，两人都会看到新问题');
-    return loadAll();
-  });
-}
-
-function renderDailyQuestion() {
-  $('#dqQuestion').textContent = currentQuestion();
-  var today = todayStr();
-  var p = state.profile || defaults();
-  var me = state.myName;
-  var todayAnswers = state.answers.filter(function (a) { return a.date === today; });
-  var mine = todayAnswers.find(function (a) { return a.author === me; });
-  var theirs = todayAnswers.find(function (a) { return a.author !== me; });
-  setField($('#dqInput'), mine ? mine.answer : '');
-  var otherName = me === p.nicknameMe ? p.nicknameTa : p.nicknameMe;
-  var taName = theirs ? theirs.author : otherName;
-  var rows = '';
-  rows += '<div class="dq-row mine"><span class="who">' + esc(me) + '</span>' +
-    '<span class="txt">' + esc(mine ? mine.answer : '我还没回答') + '</span></div>';
-  rows += '<div class="dq-row"><span class="who">' + esc(taName) + '</span>' +
-    '<span class="txt">' + esc(theirs ? theirs.answer : 'TA 还没回答') + '</span></div>';
-  $('#dqList').innerHTML = rows;
-}
-
-function submitDailyQuestion() {
-  var answer = $('#dqInput').value.trim();
-  if (!answer) { toast('先写下你的回答吧'); return; }
-  var today = todayStr();
-  var existing = state.answers.find(function (a) { return a.date === today && a.author === state.myName; });
-  if (existing) {
-    Data.save('answers', Object.assign({}, existing, { answer: answer })).then(loadAll);
-  } else {
-    Data.save('answers', { date: today, author: state.myName, answer: answer }).then(loadAll);
-  }
 }
 
 // ---------- 吵架和好卡 ----------
@@ -691,7 +591,6 @@ function renderCheckin() {
       (hasLoc ? '' : ' · 无定位') + (c.acc ? ' · 精度±' + c.acc + '米' : '') + '</div>' +
       '</div>' + mapLink +
       '<button class="checkin-share" data-share-checkin="' + i + '">分享</button>' +
-      '<button class="checkin-del" data-del-checkin="' + i + '">删除</button>' +
       '</div>';
   }).join('');
 }
@@ -1124,7 +1023,7 @@ function delTimeline(id) {
   Data.remove('timeline', id).then(loadAll);
 }
 function delNote(id) {
-  if (!confirm('删除这条留言？')) return;
+  if (!confirm('撤回这条留言？')) return;
   Data.remove('messages', id).then(loadAll);
 }
 function delCheckin(i) {
@@ -1132,6 +1031,29 @@ function delCheckin(i) {
   if (!c) return;
   if (!confirm('删除这条报平安？')) return;
   Data.remove('checkin', c.id).then(loadAll);
+}
+
+// 长按某一条报平安，弹出删除确认
+function delCheckinFromEl(el) {
+  var wrap = $('#checkinList');
+  var i = Array.prototype.indexOf.call(wrap.children, el);
+  if (i >= 0) delCheckin(i);
+}
+function bindLongPress(selector, onLongPress) {
+  var timer = null;
+  function start(ev) {
+    if (ev.type === 'mousedown' && ev.button !== 0) return;
+    var target = ev.target.closest(selector);
+    if (!target) return;
+    timer = setTimeout(function () { timer = null; onLongPress(target); }, 600);
+  }
+  function clear() { if (timer) { clearTimeout(timer); timer = null; } }
+  document.addEventListener('touchstart', start, { passive: true });
+  document.addEventListener('touchend', clear);
+  document.addEventListener('touchmove', clear);
+  document.addEventListener('mousedown', start);
+  document.addEventListener('mouseup', clear);
+  document.addEventListener('mouseleave', clear);
 }
 
 function saveProfile() {
@@ -1152,6 +1074,11 @@ function clearLocalData() {
   Data.clearLocal();
   toast('已清空');
   loadAll();
+}
+
+function toggleCollapse(btn) {
+  var card = btn.closest('.collapsible');
+  if (card) card.classList.toggle('collapsed');
 }
 
 // ---------- 登录 ----------
@@ -1211,6 +1138,7 @@ document.addEventListener('click', function (e) {
   t = e.target.closest('#btnSendNote'); if (t) { sendNote(); return; }
   t = e.target.closest('#btnAddWish'); if (t) { addWish(); return; }
   t = e.target.closest('#btnAddMoment'); if (t) { addMoment(); return; }
+  t = e.target.closest('[data-collapse]'); if (t) { toggleCollapse(t); return; }
   t = e.target.closest('#btnSaveProfile'); if (t) { saveProfile(); return; }
   t = e.target.closest('#btnTestPush'); if (t) { testPush(); return; }
   t = e.target.closest('#btnCloudConfig'); if (t) { openCloudModal(); return; }
@@ -1218,8 +1146,6 @@ document.addEventListener('click', function (e) {
   t = e.target.closest('#btnClearLocal'); if (t) { clearLocalData(); return; }
   t = e.target.closest('#btnLogin'); if (t) { doLogin(); return; }
   t = e.target.closest('#btnLogout'); if (t) { doLogout(); return; }
-  t = e.target.closest('#btnDqSubmit'); if (t) { submitDailyQuestion(); return; }
-  t = e.target.closest('#btnChangeQ'); if (t) { changeQuestion(); return; }
   t = e.target.closest('#btnFight'); if (t) { startFight(); return; }
   t = e.target.closest('#btnRedeem'); if (t) { redeemTask(); return; }
   t = e.target.closest('#btnMakeup'); if (t) { makeup(); return; }
@@ -1238,7 +1164,6 @@ document.addEventListener('click', function (e) {
   t = e.target.closest('[data-share-note]'); if (t) { shareNote(t.dataset.shareNote); return; }
   t = e.target.closest('[data-share-checkin]'); if (t) { shareCheckin(+t.dataset.shareCheckin); return; }
   t = e.target.closest('[data-del-note]'); if (t) { delNote(t.dataset.delNote); return; }
-  t = e.target.closest('[data-del-checkin]'); if (t) { delCheckin(+t.dataset.delCheckin); return; }
   t = e.target.closest('[data-toggle-wish]'); if (t) { toggleWish(t.dataset.toggleWish); return; }
   t = e.target.closest('[data-del-anniv]'); if (t) { delAnniv(t.dataset.delAnniv); return; }
   t = e.target.closest('[data-del-wish]'); if (t) { delWish(t.dataset.delWish); return; }
@@ -1256,7 +1181,6 @@ $('#loginPass').addEventListener('keydown', function (e) { if (e.key === 'Enter'
 $('#noteInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') sendNote(); });
 $('#wishInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') addWish(); });
 $('#momentInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') addMoment(); });
-$('#dqInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') submitDailyQuestion(); });
 $('#photoFile').addEventListener('change', handlePhotoFile);
 $('#checkinPhoto').addEventListener('change', handleCheckinPhotoFile);
 
@@ -1264,6 +1188,7 @@ $('#checkinPhoto').addEventListener('change', handleCheckinPhotoFile);
 (function init() {
   tryAutoLogin();
   render();
+  bindLongPress('.checkin-item', delCheckinFromEl);
   updateClock();
   setInterval(updateClock, 1000);
   setInterval(refreshWeather, 30 * 60 * 1000);
