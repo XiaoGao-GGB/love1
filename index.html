@@ -10,13 +10,17 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>音宝和轩宝的情侣小网站</title>
-<link rel="stylesheet" href="css/style.css?v=19">
+<link rel="stylesheet" href="css/style.css?v=20">
 </head>
 <body>
 
 <div id="loginOverlay" class="login-overlay">
   <div class="login-card">
-    <div class="login-logo"><span class="heart"></span></div>
+    <div class="login-logo">
+      <svg viewBox="0 0 100 100" width="36" height="36" aria-hidden="true">
+        <path d="M50 90 C 20 65, 6 50, 6 28 C 6 13, 18 4, 30 4 C 40 4, 48 10, 50 16 C 52 10, 60 4, 70 4 C 82 4, 94 13, 94 28 C 94 50, 80 65, 50 90 Z" fill="#ff6b81"/>
+      </svg>
+    </div>
     <div class="login-title">音宝和轩宝的情侣小网站</div>
     <input id="loginUser" placeholder="账号" autocomplete="off">
     <input id="loginPass" type="password" placeholder="密码" autocomplete="off">
@@ -205,9 +209,9 @@
 
 <div id="toast"></div>
 
-<script src="js/config.js?v=19"></script>
-<script src="js/store.js?v=19"></script>
-<script src="js/app.js?v=19"></script>
+<script src="js/config.js?v=20"></script>
+<script src="js/store.js?v=20"></script>
+<script src="js/app.js?v=20"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
