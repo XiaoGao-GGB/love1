@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>音宝和轩宝的情侣小网站</title>
-<link rel="stylesheet" href="css/style.css?v=15">
+<link rel="stylesheet" href="css/style.css?v=16">
 </head>
 <body>
 
@@ -38,7 +38,7 @@
 
   <main>
 
-    <!-- 首页：在一起天数 + 每日一问 + 吵架和好卡 + 纪念日 -->
+    <!-- 首页：在一起天数 + 吵架和好卡 + 纪念日 -->
     <section id="page-home" class="page active">
       <div class="home-hero card">
         <div class="hero-main">
@@ -56,24 +56,12 @@
         <div class="hero-motto" id="homeMotto"></div>
       </div>
 
-      <div class="card">
-        <div class="card-title dq-title">
-          <span>每日一问</span>
-          <button class="btn-ghost btn-small" id="btnChangeQ">换一题</button>
-        </div>
-        <div class="dq-question" id="dqQuestion"></div>
-        <div class="dq-answer-wrap">
-          <input id="dqInput" placeholder="写下你的回答…" autocomplete="off">
-          <button class="btn-main" id="btnDqSubmit">回答</button>
-        </div>
-        <div id="dqList"></div>
-      </div>
-
       <!-- 报平安：我在哪 -->
       <div class="section-head">
         <span>报平安 · 我在哪</span>
         <button class="btn-main btn-small" id="btnCheckin">＋ 报平安</button>
       </div>
+      <div class="hint checkin-tip">长按某一条可以删除</div>
       <div id="checkinList" class="checkin-list"></div>
       <input type="file" id="checkinPhoto" accept="image/*" capture="environment" hidden>
 
@@ -139,25 +127,30 @@
 
     <!-- 我的：设置 -->
     <section id="page-mine" class="page">
-      <div class="card form-card">
-        <div class="form-title">我们</div>
-        <label>我的昵称</label>
-        <input id="setMe" placeholder="你叫什么">
-        <label>TA 的昵称</label>
-        <input id="setTa" placeholder="TA 叫什么">
-        <label>在一起的日子</label>
-        <input id="setStart" type="date">
-        <label>我们的主题语</label>
-        <input id="setMotto" placeholder="一句属于你们的话">
-        <label>所在城市（首页看天气）</label>
-        <input id="setCity" placeholder="如：永州">
-        <label>我的微信提醒码（推送加 PushPlus）</label>
-        <input id="setTokenMe" placeholder="微信搜「PushPlus 推送加」获取" autocomplete="off">
-        <label>TA 的微信提醒码（推送加 PushPlus）</label>
-        <input id="setTokenTa" placeholder="TA 的（可留空，先填自己的也行）" autocomplete="off">
-        <div class="hint">填了提醒码，对方发新动态时你微信会收到提醒；两人都填好，就能互相收到。保存后云端同步。想先试试自己能不能收到，点下面的「发送测试提醒」。</div>
-        <button class="btn-ghost" id="btnTestPush">发送测试提醒</button>
-        <button class="btn-main" id="btnSaveProfile">保存</button>
+      <div class="card form-card collapsible collapsed">
+        <button class="collapse-head" data-collapse>
+          <span>设置（昵称、提醒码等）</span>
+          <span class="collapse-arrow">▸</span>
+        </button>
+        <div class="collapse-body">
+          <label>我的昵称</label>
+          <input id="setMe" placeholder="你叫什么">
+          <label>TA 的昵称</label>
+          <input id="setTa" placeholder="TA 叫什么">
+          <label>在一起的日子</label>
+          <input id="setStart" type="date">
+          <label>我们的主题语</label>
+          <input id="setMotto" placeholder="一句属于你们的话">
+          <label>所在城市（首页看天气）</label>
+          <input id="setCity" placeholder="如：永州">
+          <label>我的微信提醒码（推送加 PushPlus）</label>
+          <input id="setTokenMe" placeholder="微信搜「PushPlus 推送加」获取" autocomplete="off">
+          <label>TA 的微信提醒码（推送加 PushPlus）</label>
+          <input id="setTokenTa" placeholder="TA 的（可留空，先填自己的也行）" autocomplete="off">
+          <div class="hint">填了提醒码，对方发新动态时你微信会收到提醒；两人都填好，就能互相收到。保存后云端同步。想先试试自己能不能收到，点下面的「发送测试提醒」。</div>
+          <button class="btn-ghost" id="btnTestPush">发送测试提醒</button>
+          <button class="btn-main" id="btnSaveProfile">保存</button>
+        </div>
       </div>
 
       <div class="card form-card">
@@ -212,9 +205,9 @@
 
 <div id="toast"></div>
 
-<script src="js/config.js?v=15"></script>
-<script src="js/store.js?v=15"></script>
-<script src="js/app.js?v=15"></script>
+<script src="js/config.js?v=16"></script>
+<script src="js/store.js?v=16"></script>
+<script src="js/app.js?v=16"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
