@@ -222,9 +222,11 @@ function renderHome() {
   var subEl = $('#daysSub');
   var mottoEl = $('#homeMotto');
 
+  var fromEl = $('#daysFrom');
   if (!p.startDate) {
     daysEl.textContent = '—';
     subEl.textContent = '先在「我的」里设置我们在一起的日子';
+    if (fromEl) fromEl.textContent = '';
   } else {
     var n = diffDays(p.startDate, todayStr()) + 1;
     daysEl.textContent = n;
@@ -234,7 +236,8 @@ function renderHome() {
     var days = d2.getDate() - d1.getDate();
     if (days < 0) { months--; days += new Date(d2.getFullYear(), d2.getMonth(), 0).getDate(); }
     if (months < 0) { years--; months += 12; }
-    subEl.textContent = years + '年' + months + '个月' + days + '天 · 从 ' + fmtDate(p.startDate) + ' 开始';
+    subEl.textContent = years + '年' + months + '个月' + days + '天';
+    if (fromEl) fromEl.textContent = '从 ' + fmtDate(p.startDate) + ' 开始';
   }
   mottoEl.textContent = p.motto || '';
 
@@ -369,14 +372,27 @@ function renderFight() {
   var f = state.fight;
   if (f && f.active) {
     card.classList.add('fighting');
+    var wantsHtml = '';
+    if (f.wants && f.wants.length) {
+      wantsHtml = '<div class="fight-wants">' + f.wants.map(function (w) {
+        return '<div class="fight-want"><span class="who">' + esc(w.author) + '</span>想要：' + esc(w.text) + '</div>';
+      }).join('') + '</div>';
+    }
     card.innerHTML =
       '<div class="card-title">吵架和好卡</div>' +
       '<div class="fight-state">在吵架中 · ' + esc(f.triggeredBy) + ' 按下的</div>' +
       '<div class="fight-task">和好卡：' + esc(f.task) + '</div>' +
+      wantsHtml +
+      '<div class="fight-want-form">' +
+      '<input id="fightWantInput" placeholder="我想要…（想吃什么 / 想干什么）" autocomplete="off">' +
+      '<button class="btn-ghost btn-small" id="btnWant">告诉TA</button>' +
+      '</div>' +
       '<div class="fight-row">' +
       '<button class="btn-ghost" id="btnRedeem">重新抽一张</button>' +
       '<button class="btn-main" id="btnMakeup">我们和好了</button>' +
       '</div>';
+    var wi = $('#fightWantInput');
+    if (wi) wi.addEventListener('keydown', function (e) { if (e.key === 'Enter') submitWant(); });
   } else {
     card.classList.remove('fighting');
     card.innerHTML =
@@ -386,12 +402,28 @@ function renderFight() {
   }
 }
 
+// 告诉对方吵架时我想要什么（想吃的 / 想做的事）
+function submitWant() {
+  var f = state.fight;
+  if (!f || !f.active) return;
+  var input = $('#fightWantInput');
+  var text = input.value.trim();
+  if (!text) { toast('先写一下你想要什么'); return; }
+  var wants = (f.wants || []).filter(function (w) { return w.author !== state.myName; });
+  wants.push({ author: state.myName, text: text });
+  Data.save('fight', Object.assign({}, f, { wants: wants })).then(function () {
+    toast('已告诉 TA');
+    return loadAll();
+  }).catch(function () { toast('保存失败，请检查网络后重试'); });
+}
+
 function startFight() {
   var base = state.fight || {};
   Data.save('fight', Object.assign({}, base, {
     active: true,
     triggeredBy: state.myName,
-    task: randomTask()
+    task: randomTask(),
+    wants: []
   })).then(loadAll);
 }
 
@@ -1147,6 +1179,7 @@ document.addEventListener('click', function (e) {
   t = e.target.closest('#btnLogin'); if (t) { doLogin(); return; }
   t = e.target.closest('#btnLogout'); if (t) { doLogout(); return; }
   t = e.target.closest('#btnFight'); if (t) { startFight(); return; }
+  t = e.target.closest('#btnWant'); if (t) { submitWant(); return; }
   t = e.target.closest('#btnRedeem'); if (t) { redeemTask(); return; }
   t = e.target.closest('#btnMakeup'); if (t) { makeup(); return; }
   t = e.target.closest('#btnAddPhoto'); if (t) { pickPhoto(); return; }
