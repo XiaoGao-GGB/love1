@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>音宝和轩宝的情侣小网站</title>
-<link rel="stylesheet" href="css/style.css?v=10">
+<link rel="stylesheet" href="css/style.css?v=11">
 </head>
 <body>
 
@@ -144,7 +144,8 @@
         <input id="setTokenMe" placeholder="微信搜「PushPlus 推送加」获取" autocomplete="off">
         <label>TA 的微信提醒码（推送加 PushPlus）</label>
         <input id="setTokenTa" placeholder="TA 的（可留空，先填自己的也行）" autocomplete="off">
-        <div class="hint">填了提醒码，对方发新动态时你微信会收到提醒；两人都填好，就能互相收到。保存后云端同步。</div>
+        <div class="hint">填了提醒码，对方发新动态时你微信会收到提醒；两人都填好，就能互相收到。保存后云端同步。想先试试自己能不能收到，点下面的「发送测试提醒」。</div>
+        <button class="btn-ghost" id="btnTestPush">发送测试提醒</button>
         <button class="btn-main" id="btnSaveProfile">保存</button>
       </div>
 
@@ -205,9 +206,9 @@
 
 <div id="toast"></div>
 
-<script src="js/config.js?v=10"></script>
-<script src="js/store.js?v=10"></script>
-<script src="js/app.js?v=10"></script>
+<script src="js/config.js?v=11"></script>
+<script src="js/store.js?v=11"></script>
+<script src="js/app.js?v=11"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
