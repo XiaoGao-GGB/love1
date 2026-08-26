@@ -393,6 +393,16 @@ main { padding: 12px 16px 96px; }
   padding: 5px 12px;
   cursor: pointer;
 }
+.checkin-del {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--danger);
+  border: 1px solid #f0cfc7;
+  background: #fdf4f2;
+  border-radius: 8px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
 
 /* 新动态提醒条 */
 .new-banner:not([hidden]) {
@@ -505,6 +515,17 @@ main { padding: 12px 16px 96px; }
   padding: 2px 4px;
 }
 .note.mine .note-share { color: rgba(255, 255, 255, 0.8); }
+.note-del {
+  display: inline-block;
+  font-size: 11px;
+  border: 0;
+  background: none;
+  color: var(--danger);
+  cursor: pointer;
+  margin-top: 5px;
+  padding: 2px 4px;
+}
+.note.mine .note-del { color: rgba(255, 255, 255, 0.75); }
 
 /* ---------- 心愿 ---------- */
 .panel { padding-top: 16px; }
