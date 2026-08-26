@@ -86,6 +86,7 @@ function loadAll() {
     state.daily = r[9][0] || null;
     state.checkins = r[10].sort(function (a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); });
     render();
+    updateNewBanner();
   }).catch(function (e) {
     toast('数据加载失败：' + (e && e.message ? e.message : e));
   });
@@ -290,6 +291,7 @@ function renderNotes() {
       replyHtml +
       '<div class="note-body">' + esc(m.content) + '</div>' +
       '<button class="note-reply" data-reply="' + esc(m.id) + '">回复</button>' +
+      '<button class="note-share" data-share-note="' + esc(m.id) + '">分享</button>' +
       '</div>';
   }).join('');
   renderReplyHint();
@@ -591,7 +593,7 @@ function handlePhotoFile() {
         var caption = $('#mPhotoCaption').value.trim();
         try {
           savePhoto({ author: state.myName, caption: caption, data: data })
-            .then(function () { closeModal(); return loadAll(); })
+            .then(function () { closeModal(); notifyPartner('新照片', state.myName + '发了张新照片，快去看看'); return loadAll(); })
             .then(loadPhotoChunks)
             .catch(function () { toast('保存失败，请检查网络后重试'); });
         } catch (e) {
@@ -670,7 +672,7 @@ function renderCheckin() {
     wrap.innerHTML = '<div class="empty">还没有报平安，点右上角「报平安」报一下</div>';
     return;
   }
-  wrap.innerHTML = state.checkins.map(function (c) {
+  wrap.innerHTML = state.checkins.map(function (c, i) {
     var note = c.note || '报了个平安';
     var hasLoc = !(c.lat == null || c.lon == null);
     var mapLink = '';
@@ -687,6 +689,7 @@ function renderCheckin() {
       '<div class="checkin-meta">' + esc(c.author) + ' · ' + timeStr(c.createdAt) +
       (hasLoc ? '' : ' · 无定位') + (c.acc ? ' · 精度±' + c.acc + '米' : '') + '</div>' +
       '</div>' + mapLink +
+      '<button class="checkin-share" data-share-checkin="' + i + '">分享</button>' +
       '</div>';
   }).join('');
 }
@@ -755,7 +758,12 @@ function submitCheckin(data) {
     if (modalCb === null) return false;
     flow.done = true;
     Data.save('checkin', item)
-      .then(function () { closeModal(); toast('报平安成功'); return loadAll(); })
+      .then(function () {
+        closeModal();
+        toast('报平安成功');
+        notifyPartner('报平安', (base.author || state.myName) + '报了平安，快去看看 TA 在哪');
+        return loadAll();
+      })
       .catch(function () { toast('保存失败，请检查网络后重试'); });
     return true;
   }
@@ -824,6 +832,101 @@ function getLocation(ok, fail) {
   );
 }
 
+// ---------- 分享给 TA ----------
+function shareOut(title, text, url) {
+  var full = text + (url ? '\n' + url : '');
+  if (navigator.share) {
+    navigator.share({ title: title, text: text, url: url || location.href }).catch(function () {});
+    return;
+  }
+  function copy() {
+    var ta = document.createElement('textarea');
+    ta.value = full;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); toast('已复制，可粘贴发给 TA'); }
+    catch (e) { prompt('复制下面这段话发给 TA：', full); }
+    document.body.removeChild(ta);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(full).then(function () { toast('已复制，可粘贴发给 TA'); }).catch(copy);
+  } else {
+    copy();
+  }
+}
+
+function shareCheckin(i) {
+  var c = state.checkins[i];
+  if (!c) return;
+  var note = c.note || '报了个平安';
+  var text = (c.author || 'TA') + '报平安啦（' + timeStr(c.createdAt) + '）：' + note;
+  var url = '';
+  if (c.lat != null && c.lon != null) {
+    var g = wgs84ToGcj02(Number(c.lat), Number(c.lon));
+    url = 'https://uri.amap.com/marker?position=' + encodeURIComponent(g.lon) + ',' + encodeURIComponent(g.lat) +
+      '&name=' + encodeURIComponent(note) + '&callnative=0';
+  }
+  shareOut('报平安', text, url || location.href);
+}
+
+function shareNote(id) {
+  var m = state.messages.find(function (x) { return x.id === id; });
+  if (!m) return;
+  shareOut('留言', (m.author || 'TA') + '：' + m.content, location.href);
+}
+
+function sharePhoto() {
+  var p = state.photos.find(function (x) { return x.id === lbPhotoId; });
+  shareOut('照片', (p && p.author ? p.author : 'TA') + '在情侣小网站发了张新照片，快去看看', location.href);
+}
+
+// ---------- 微信提醒（PushPlus 推送加，网页可直接调用，已实测支持跨域） ----------
+function partnerToken() {
+  var p = state.profile || {};
+  if (!p.tokenMe && !p.tokenTa) return '';
+  if (state.myName === p.nicknameMe) return p.tokenTa || '';
+  return p.tokenMe || '';
+}
+function notifyPartner(title, content) {
+  var token = partnerToken();
+  if (!token) return Promise.resolve();
+  return fetch('https://www.pushplus.plus/send?token=' + encodeURIComponent(token) +
+    '&title=' + encodeURIComponent(title) +
+    '&content=' + encodeURIComponent(content))
+    .then(function (r) { return r.json(); })
+    .then(function (j) { if (j && j.code !== 200) console.log('推送未送达：', j.msg); })
+    .catch(function () {});
+}
+
+// ---------- 网站内新动态提醒 ----------
+function collectActivity() {
+  return (state.checkins || []).concat(state.messages || [], state.photos || [], state.moments || []);
+}
+function unseenActivity() {
+  var lastSeen = localStorage.getItem('love_lastseen') || '';
+  var mine = state.myName;
+  return collectActivity().filter(function (x) {
+    return x.author && x.author !== mine && String(x.createdAt || '') > lastSeen;
+  });
+}
+function updateNewBanner() {
+  var banner = $('#newBanner');
+  if (!banner) return;
+  var unseen = unseenActivity();
+  if (!unseen.length) { banner.hidden = true; return; }
+  $('#newBannerText').textContent = unseen[0].author + '发来 ' + unseen.length + ' 条新动态，点这里看看';
+  banner.hidden = false;
+}
+function markAllSeen() {
+  var max = '';
+  collectActivity().forEach(function (x) {
+    if (String(x.createdAt || '') > max) max = String(x.createdAt || '');
+  });
+  localStorage.setItem('love_lastseen', max);
+  var banner = $('#newBanner');
+  if (banner) banner.hidden = true;
+}
+
 // ---------- 我的 ----------
 function setField(el, v) {
   if (document.activeElement !== el) el.value = v;
@@ -836,6 +939,8 @@ function renderMine() {
   setField($('#setStart'), p.startDate || '');
   setField($('#setMotto'), p.motto || '');
   setField($('#setCity'), p.city || '');
+  setField($('#setTokenMe'), p.tokenMe || '');
+  setField($('#setTokenTa'), p.tokenTa || '');
 
   var me = p.nicknameMe || '我';
   var ta = p.nicknameTa || 'TA';
@@ -953,6 +1058,7 @@ function sendNote() {
   Data.save('messages', msg)
     .then(function () { return loadAll(); })
     .then(function () {
+      notifyPartner('新留言', state.myName + '给你留言：' + content);
       if (wasReply) {
         var list = $('#noteList');
         if (list) list.scrollIntoView({ block: 'end' });
@@ -971,7 +1077,10 @@ function addMoment() {
   var content = $('#momentInput').value.trim();
   if (!content) return;
   $('#momentInput').value = '';
-  Data.save('moments', { content: content, author: state.myName }).then(loadAll);
+  Data.save('moments', { content: content, author: state.myName }).then(function () {
+    notifyPartner('小确幸', state.myName + '记下了一件小确幸：' + content);
+    return loadAll();
+  });
 }
 
 function toggleWish(id) {
@@ -1003,7 +1112,9 @@ function saveProfile() {
     nicknameTa: $('#setTa').value.trim() || 'TA',
     startDate: $('#setStart').value,
     motto: $('#setMotto').value.trim(),
-    city: $('#setCity').value.trim()
+    city: $('#setCity').value.trim(),
+    tokenMe: $('#setTokenMe').value.trim(),
+    tokenTa: $('#setTokenTa').value.trim()
   });
   Data.save('profile', p).then(function () { toast('已保存'); return loadAll(); }).then(refreshWeather);
 }
@@ -1039,6 +1150,9 @@ document.addEventListener('click', function (e) {
   t = e.target.closest('[data-tab]');
   if (t) { switchTab(t.dataset.tab); return; }
 
+  t = e.target.closest('#newBanner');
+  if (t) { markAllSeen(); switchTab('home'); return; }
+
   t = e.target.closest('#btnAddAnniv'); if (t) { openAnnivModal(); return; }
   t = e.target.closest('#btnAddEvent'); if (t) { openEventModal(); return; }
   t = e.target.closest('#btnSendNote'); if (t) { sendNote(); return; }
@@ -1057,6 +1171,7 @@ document.addEventListener('click', function (e) {
   t = e.target.closest('#btnCheckin'); if (t) { pickCheckinPhoto(); return; }
   t = e.target.closest('#lbClose'); if (t) { closeLightbox(); return; }
   t = e.target.closest('#lbDel'); if (t) { delPhoto(); return; }
+  t = e.target.closest('#lbShare'); if (t) { sharePhoto(); return; }
   t = e.target.closest('.lightbox'); if (t && t === e.target) { closeLightbox(); return; }
   t = e.target.closest('#btnCancelReply'); if (t) { state.replyTarget = null; renderReplyHint(); return; }
   t = e.target.closest('#btnModalOk'); if (t) { submitModal(); return; }
@@ -1064,6 +1179,8 @@ document.addEventListener('click', function (e) {
   t = e.target.closest('.modal-wrap'); if (t && t === e.target) { closeModal(); return; }
 
   t = e.target.closest('[data-reply]'); if (t) { setReply(t.dataset.reply); return; }
+  t = e.target.closest('[data-share-note]'); if (t) { shareNote(t.dataset.shareNote); return; }
+  t = e.target.closest('[data-share-checkin]'); if (t) { shareCheckin(+t.dataset.shareCheckin); return; }
   t = e.target.closest('[data-toggle-wish]'); if (t) { toggleWish(t.dataset.toggleWish); return; }
   t = e.target.closest('[data-del-anniv]'); if (t) { delAnniv(t.dataset.delAnniv); return; }
   t = e.target.closest('[data-del-wish]'); if (t) { delWish(t.dataset.delWish); return; }
