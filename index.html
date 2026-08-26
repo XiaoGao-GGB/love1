@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>音宝和轩宝的情侣小网站</title>
-<link rel="stylesheet" href="css/style.css?v=11">
+<link rel="stylesheet" href="css/style.css?v=12">
 </head>
 <body>
 
@@ -150,6 +150,14 @@
       </div>
 
       <div class="card form-card">
+        <div class="form-title">身份锁定</div>
+        <div class="hint" id="lockHint"></div>
+        <label>锁密码</label>
+        <input id="setLockPwd" type="password" placeholder="设一个密码（留空点保存=不锁）" autocomplete="off">
+        <button class="btn-main" id="btnSaveLock">保存</button>
+      </div>
+
+      <div class="card form-card">
         <div class="form-title">我现在是</div>
         <div class="seg" id="identitySeg"></div>
         <div class="hint">写留言、记心愿时用这个身份署名。两人各用各的。</div>
@@ -206,9 +214,9 @@
 
 <div id="toast"></div>
 
-<script src="js/config.js?v=11"></script>
-<script src="js/store.js?v=11"></script>
-<script src="js/app.js?v=11"></script>
+<script src="js/config.js?v=12"></script>
+<script src="js/store.js?v=12"></script>
+<script src="js/app.js?v=12"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
