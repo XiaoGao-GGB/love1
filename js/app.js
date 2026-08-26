@@ -748,25 +748,57 @@ function submitCheckin(data) {
   var note = $('#mCheckinNote').value.trim();
   var base = { author: state.myName, note: note, photo: data };
   toast('正在获取位置…');
-  var finished = false;
-  function finish(item) {
-    if (finished) return;
+  var flow = { done: false };
+  function save(item) {
+    if (flow.done) return false;
     // 弹窗已被取消就不要再保存了
-    if (modalCb === null) return;
-    finished = true;
+    if (modalCb === null) return false;
+    flow.done = true;
     Data.save('checkin', item)
       .then(function () { closeModal(); toast('报平安成功'); return loadAll(); })
       .catch(function () { toast('保存失败，请检查网络后重试'); });
+    return true;
   }
   if (!navigator.geolocation) {
     toast('设备不支持定位，已记为普通报平安');
-    finish(base);
+    save(base);
     return;
   }
-  getLocation(
-    function (loc) { finish(Object.assign({}, base, loc)); },
-    function () { toast('没拿到定位，已记为普通报平安'); finish(base); }
+  getLocation(function (loc) {
+    if (loc.acc && loc.acc > 300) {
+      confirmCoarse(base, loc, save, flow);
+    } else {
+      save(Object.assign({}, base, loc));
+    }
+  }, function () { toast('没拿到定位，已记为普通报平安'); save(base); });
+}
+
+// 定位太粗（室内/信号差，几百米以上）时先问一下，别悄悄存个偏很远的
+function confirmCoarse(base, loc, save, flow) {
+  if (flow.done || modalCb === null) return;
+  function retryCoarse() {
+    toast('再等一下，正在找更准的位置…');
+    getLocation(function (loc2) {
+      if (flow.done || modalCb === null) return;
+      if (loc2.acc && loc2.acc > 300) {
+        confirmCoarse(base, loc2, save, flow);
+      } else {
+        save(Object.assign({}, base, loc2));
+      }
+    }, function () {
+      if (flow.done || modalCb === null) return;
+      toast('还是没拿到更准的定位');
+      confirmCoarse(base, loc, save, flow);
+    });
+  }
+  openModal(
+    '<div class="modal-title">定位不太准</div>' +
+    '<div class="modal-hint">现在只能定位到大约 ±' + loc.acc + ' 米，可能是室内或信号不好。<br>建议到窗边、阳台或楼下再报，能准到几米~几十米。</div>' +
+    '<div class="modal-btns"><button class="btn-ghost" id="btnCoarseRetry">再等等</button>' +
+    '<button id="btnModalOk" class="btn-main">就用这个位置</button></div>',
+    function () { save(Object.assign({}, base, loc)); }
   );
+  $('#btnCoarseRetry').onclick = retryCoarse;
 }
 
 // 先要 GPS 高精度（一般能到几米），拿不到再退回普通定位，总比没有位置好
@@ -788,7 +820,7 @@ function getLocation(ok, fail) {
     function () {
       navigator.geolocation.getCurrentPosition(accept, giveup, { enableHighAccuracy: false, timeout: 8000, maximumAge: 0 });
     },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
   );
 }
 
