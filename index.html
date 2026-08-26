@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>音宝和轩宝的情侣小网站</title>
-<link rel="stylesheet" href="css/style.css?v=6">
+<link rel="stylesheet" href="css/style.css?v=7">
 </head>
 <body>
 
@@ -53,6 +53,14 @@
         </div>
         <div id="dqList"></div>
       </div>
+
+      <!-- 报平安：我在哪 -->
+      <div class="section-head">
+        <span>报平安 · 我在哪</span>
+        <button class="btn-main btn-small" id="btnCheckin">＋ 报平安</button>
+      </div>
+      <div id="checkinList" class="checkin-list"></div>
+      <input type="file" id="checkinPhoto" accept="image/*" capture="environment" hidden>
 
       <div class="card fight-card" id="fightCard"></div>
 
@@ -187,9 +195,9 @@
 
 <div id="toast"></div>
 
-<script src="js/config.js?v=6"></script>
-<script src="js/store.js?v=6"></script>
-<script src="js/app.js?v=6"></script>
+<script src="js/config.js?v=7"></script>
+<script src="js/store.js?v=7"></script>
+<script src="js/app.js?v=7"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
