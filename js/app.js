@@ -631,6 +631,38 @@ function delPhoto() {
 }
 
 // ---------- 报平安 · 我在哪 ----------
+// 手机 GPS 给的是 WGS-84，高德/腾讯/百度地图用的是 GCJ-02，不换算地图上会偏几百米
+var GCJ_A = 6378245.0, GCJ_EE = 0.00669342162296594323;
+function outOfChina(lat, lon) {
+  return lon < 72.004 || lon > 137.8347 || lat < 0.8293 || lat > 55.8271;
+}
+function gcjTransformLat(x, y) {
+  var ret = -100 + 2 * x + 3 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+  ret += (20 * Math.sin(6 * x * Math.PI) + 20 * Math.sin(2 * x * Math.PI)) * 2 / 3;
+  ret += (20 * Math.sin(y * Math.PI) + 40 * Math.sin(y / 3 * Math.PI)) * 2 / 3;
+  ret += (160 * Math.sin(y / 12 * Math.PI) + 320 * Math.sin(y * Math.PI / 30)) * 2 / 3;
+  return ret;
+}
+function gcjTransformLon(x, y) {
+  var ret = 300 + x + 2 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
+  ret += (20 * Math.sin(6 * x * Math.PI) + 20 * Math.sin(2 * x * Math.PI)) * 2 / 3;
+  ret += (20 * Math.sin(x * Math.PI) + 40 * Math.sin(x / 3 * Math.PI)) * 2 / 3;
+  ret += (150 * Math.sin(x / 12 * Math.PI) + 300 * Math.sin(x / 30 * Math.PI)) * 2 / 3;
+  return ret;
+}
+function wgs84ToGcj02(lat, lon) {
+  if (outOfChina(lat, lon)) return { lat: lat, lon: lon };
+  var dLat = gcjTransformLat(lon - 105, lat - 35);
+  var dLon = gcjTransformLon(lon - 105, lat - 35);
+  var radLat = lat / 180 * Math.PI;
+  var magic = Math.sin(radLat);
+  magic = 1 - GCJ_EE * magic * magic;
+  var sqrtMagic = Math.sqrt(magic);
+  dLat = dLat * 180 / ((GCJ_A * (1 - GCJ_EE)) / (magic * sqrtMagic) * Math.PI);
+  dLon = dLon * 180 / (GCJ_A / sqrtMagic * Math.cos(radLat) * Math.PI);
+  return { lat: lat + dLat, lon: lon + dLon };
+}
+
 function renderCheckin() {
   var wrap = $('#checkinList');
   if (!wrap) return;
@@ -641,17 +673,19 @@ function renderCheckin() {
   wrap.innerHTML = state.checkins.map(function (c) {
     var note = c.note || '报了个平安';
     var hasLoc = !(c.lat == null || c.lon == null);
-    var mapLink = hasLoc
-      ? '<a class="checkin-map" target="_blank" rel="noopener" href="https://uri.amap.com/marker?position=' +
-        encodeURIComponent(c.lon) + ',' + encodeURIComponent(c.lat) +
-        '&name=' + encodeURIComponent(note) + '&callnative=0">地图</a>'
-      : '';
+    var mapLink = '';
+    if (hasLoc) {
+      var g = wgs84ToGcj02(Number(c.lat), Number(c.lon));
+      mapLink = '<a class="checkin-map" target="_blank" rel="noopener" href="https://uri.amap.com/marker?position=' +
+        encodeURIComponent(g.lon) + ',' + encodeURIComponent(g.lat) +
+        '&name=' + encodeURIComponent(note) + '&callnative=0">地图</a>';
+    }
     var photo = c.photo ? '<div class="checkin-photo"><img src="' + c.photo + '" alt=""></div>' : '';
     return '<div class="checkin-item">' + photo +
       '<div class="checkin-body">' +
       '<div class="checkin-note">' + esc(note) + '</div>' +
       '<div class="checkin-meta">' + esc(c.author) + ' · ' + timeStr(c.createdAt) +
-      (hasLoc ? '' : ' · 无定位') + '</div>' +
+      (hasLoc ? '' : ' · 无定位') + (c.acc ? ' · 精度±' + c.acc + '米' : '') + '</div>' +
       '</div>' + mapLink +
       '</div>';
   }).join('');
@@ -729,12 +763,32 @@ function submitCheckin(data) {
     finish(base);
     return;
   }
+  getLocation(
+    function (loc) { finish(Object.assign({}, base, loc)); },
+    function () { toast('没拿到定位，已记为普通报平安'); finish(base); }
+  );
+}
+
+// 先要 GPS 高精度（一般能到几米），拿不到再退回普通定位，总比没有位置好
+function getLocation(ok, fail) {
+  var done = false;
+  function accept(pos) {
+    if (done) return;
+    done = true;
+    ok({ lat: pos.coords.latitude, lon: pos.coords.longitude, acc: Math.round(pos.coords.accuracy || 0) });
+  }
+  function giveup() {
+    if (done) return;
+    done = true;
+    fail();
+  }
+  if (!navigator.geolocation) { fail(); return; }
   navigator.geolocation.getCurrentPosition(
-    function (pos) {
-      finish(Object.assign({}, base, { lat: pos.coords.latitude, lon: pos.coords.longitude }));
+    accept,
+    function () {
+      navigator.geolocation.getCurrentPosition(accept, giveup, { enableHighAccuracy: false, timeout: 8000, maximumAge: 0 });
     },
-    function () { toast('没拿到定位，已记为普通报平安'); finish(base); },
-    { timeout: 10000, maximumAge: 60000 }
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
   );
 }
 
