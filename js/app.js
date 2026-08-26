@@ -1203,6 +1203,38 @@ function clearLocalData() {
   loadAll();
 }
 
+// ---------- 登录 ----------
+function applyLogin(u) {
+  var p = state.profile || defaults();
+  state.myName = u.role === 'me' ? (p.nicknameMe || '音宝') : (p.nicknameTa || '轩宝');
+  localStorage.setItem('love_myname', state.myName);
+  localStorage.setItem('love_user', u.user);
+  var ov = $('#loginOverlay');
+  if (ov) ov.hidden = true;
+}
+function tryAutoLogin() {
+  var saved = localStorage.getItem('love_user');
+  if (!saved) return false;
+  var u = (window.LOGIN_USERS || []).filter(function (x) { return x.user === saved; })[0];
+  if (!u) return false;
+  applyLogin(u);
+  return true;
+}
+function doLogin() {
+  var user = $('#loginUser').value.trim();
+  var pass = $('#loginPass').value;
+  var u = (window.LOGIN_USERS || []).filter(function (x) { return x.user === user && x.pass === pass; })[0];
+  if (!u) { toast('账号或密码不对'); return; }
+  applyLogin(u);
+  loadAll();
+}
+function doLogout() {
+  if (!confirm('确定退出登录吗？')) return;
+  localStorage.removeItem('love_user');
+  localStorage.removeItem('love_myname');
+  location.reload();
+}
+
 // ---------- Toast ----------
 var toastTimer = null;
 function toast(msg) {
@@ -1233,6 +1265,8 @@ document.addEventListener('click', function (e) {
   t = e.target.closest('#btnCloudConfig'); if (t) { openCloudModal(); return; }
   t = e.target.closest('#btnRefresh'); if (t) { toast('正在刷新…'); loadAll(); return; }
   t = e.target.closest('#btnClearLocal'); if (t) { clearLocalData(); return; }
+  t = e.target.closest('#btnLogin'); if (t) { doLogin(); return; }
+  t = e.target.closest('#btnLogout'); if (t) { doLogout(); return; }
   t = e.target.closest('#btnDqSubmit'); if (t) { submitDailyQuestion(); return; }
   t = e.target.closest('#btnChangeQ'); if (t) { changeQuestion(); return; }
   t = e.target.closest('#btnFight'); if (t) { startFight(); return; }
@@ -1266,6 +1300,8 @@ document.addEventListener('click', function (e) {
   if (t) { state.wishSeg = t.dataset.seg; renderWish(); return; }
 });
 
+$('#loginUser').addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
+$('#loginPass').addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
 $('#noteInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') sendNote(); });
 $('#wishInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') addWish(); });
 $('#momentInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') addMoment(); });
@@ -1275,6 +1311,7 @@ $('#checkinPhoto').addEventListener('change', handleCheckinPhotoFile);
 
 // ---------- 启动 ----------
 (function init() {
+  tryAutoLogin();
   render();
   updateClock();
   setInterval(updateClock, 1000);
