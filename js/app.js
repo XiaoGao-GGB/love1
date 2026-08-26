@@ -966,9 +966,19 @@ function renderMine() {
 
   var me = p.nicknameMe || '我';
   var ta = p.nicknameTa || 'TA';
+  function locked(who) { return who === p.nicknameMe ? p.lockMe : p.lockTa; }
+  function nameTag(who) { return esc(who) + (locked(who) ? ' ·锁' : ''); }
   $('#identitySeg').innerHTML =
-    '<button data-who="' + esc(me) + '" class="' + (state.myName === me ? 'on' : '') + '">' + esc(me) + '</button>' +
-    '<button data-who="' + esc(ta) + '" class="' + (state.myName === ta ? 'on' : '') + '">' + esc(ta) + '</button>';
+    '<button data-who="' + esc(me) + '" class="' + (state.myName === me ? 'on' : '') + '">' + nameTag(me) + '</button>' +
+    '<button data-who="' + esc(ta) + '" class="' + (state.myName === ta ? 'on' : '') + '">' + nameTag(ta) + '</button>';
+
+  var lockHint = $('#lockHint');
+  if (lockHint) {
+    lockHint.textContent = '给【' + state.myName + '】设一个锁密码：设了之后，对方想切换成你必须先输这个密码，防止冒充。' +
+      (locked(state.myName) ? '（当前已锁）' : '（当前未锁，填了密码点保存即锁定）');
+  }
+  var lf = $('#setLockPwd');
+  if (lf) lf.value = '';
 
   $('#cloudStatus').textContent = Data.cloudMode()
     ? '已连接云端：填入同一密钥的两人实时同步。'
@@ -1148,6 +1158,44 @@ function setIdentity(who) {
   renderNotes();
 }
 
+// 给当前身份设/取消锁密码
+function saveLock() {
+  var pwd = $('#setLockPwd').value;
+  var p = Object.assign({}, state.profile || defaults());
+  if (state.myName === p.nicknameMe) p.lockMe = pwd;
+  else p.lockTa = pwd;
+  Data.save('profile', p).then(function () {
+    toast(pwd ? '已锁定，以后切换成你需要输密码' : '已取消锁定');
+    var lf = $('#setLockPwd');
+    if (lf) lf.value = '';
+    return loadAll();
+  }).catch(function () { toast('保存失败，请检查网络后重试'); });
+}
+
+// 切换身份：目标身份设了锁就要先验证密码
+function requestSwitch(who) {
+  if (who === state.myName) return;
+  var p = state.profile || {};
+  var need = who === p.nicknameMe ? p.lockMe : p.lockTa;
+  if (!need) { setIdentity(who); return; }
+  openModal(
+    '<div class="modal-title">切换成 ' + esc(who) + ' 需要密码</div>' +
+    '<input id="mLockPwd" type="password" placeholder="输入 ' + esc(who) + ' 的身份锁密码" autocomplete="off">' +
+    '<div class="modal-btns"><button class="btn-ghost modal-close">取消</button>' +
+    '<button id="btnModalOk" class="btn-main">解锁切换</button></div>',
+    function () {
+      var p2 = state.profile || {};
+      var need2 = who === p2.nicknameMe ? p2.lockMe : p2.lockTa;
+      if ($('#mLockPwd').value === need2) {
+        closeModal();
+        setIdentity(who);
+      } else {
+        toast('密码不对');
+      }
+    }
+  );
+}
+
 function clearLocalData() {
   if (!confirm('确定清空当前设备缓存的数据吗？')) return;
   Data.clearLocal();
@@ -1211,7 +1259,8 @@ document.addEventListener('click', function (e) {
   t = e.target.closest('[data-del-tl]'); if (t) { delTimeline(t.dataset.delTl); return; }
   t = e.target.closest('[data-photo]'); if (t) { openLightbox(t.dataset.photo); return; }
 
-  t = e.target.closest('[data-who]'); if (t) { setIdentity(t.dataset.who); return; }
+  t = e.target.closest('[data-who]'); if (t) { requestSwitch(t.dataset.who); return; }
+  t = e.target.closest('#btnSaveLock'); if (t) { saveLock(); return; }
 
   t = e.target.closest('#wishSeg button');
   if (t) { state.wishSeg = t.dataset.seg; renderWish(); return; }
