@@ -10,9 +10,20 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>音宝和轩宝的情侣小网站</title>
-<link rel="stylesheet" href="css/style.css?v=12">
+<link rel="stylesheet" href="css/style.css?v=13">
 </head>
 <body>
+
+<div id="loginOverlay" class="login-overlay">
+  <div class="login-card">
+    <div class="login-logo"><span class="heart"></span></div>
+    <div class="login-title">音宝和轩宝的情侣小网站</div>
+    <input id="loginUser" placeholder="账号" autocomplete="off">
+    <input id="loginPass" type="password" placeholder="密码" autocomplete="off">
+    <button class="btn-main login-btn" id="btnLogin">进入</button>
+    <div class="login-hint">这是我们俩的秘密小站，输入账号密码进入</div>
+  </div>
+</div>
 
 <div id="app">
 
@@ -176,7 +187,8 @@
       <div class="card form-card">
         <div class="form-title">数据</div>
         <button class="btn-ghost danger" id="btnClearLocal">清空本地缓存数据</button>
-        <div class="hint">只清除当前设备上的缓存，不影响云端和 TA 的设备。</div>
+        <button class="btn-ghost" id="btnLogout">退出登录</button>
+        <div class="hint">只清除当前设备上的缓存，不影响云端和 TA 的设备。退出登录后下次打开需要重新输账号密码。</div>
       </div>
 
       <div class="about">音宝和轩宝的情侣小网站 · 把日子过成喜欢的样子。</div>
@@ -214,9 +226,9 @@
 
 <div id="toast"></div>
 
-<script src="js/config.js?v=12"></script>
-<script src="js/store.js?v=12"></script>
-<script src="js/app.js?v=12"></script>
+<script src="js/config.js?v=13"></script>
+<script src="js/store.js?v=13"></script>
+<script src="js/app.js?v=13"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
