@@ -894,8 +894,30 @@ function notifyPartner(title, content) {
     '&title=' + encodeURIComponent(title) +
     '&content=' + encodeURIComponent(content))
     .then(function (r) { return r.json(); })
-    .then(function (j) { if (j && j.code !== 200) console.log('推送未送达：', j.msg); })
+    .then(function (j) {
+      if (j && j.code === 905) toast('微信提醒：PushPlus 需先在公众号实名认证');
+      else if (j && j.code === 903) toast('微信提醒：对方的提醒码不对，核对一下');
+    })
     .catch(function () {});
+}
+
+// 发一条测试消息到「我的微信提醒码」，用来确认 token 和实名认证没问题
+function testPush() {
+  var token = $('#setTokenMe').value.trim();
+  if (!token) { toast('先在「我的微信提醒码」填好你的 token 再试'); return; }
+  toast('正在发送测试…');
+  fetch('https://www.pushplus.plus/send?token=' + encodeURIComponent(token) +
+    '&title=' + encodeURIComponent('情侣小网站测试') +
+    '&content=' + encodeURIComponent('如果你在微信收到这条消息，说明提醒设置成功啦！'))
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      if (j && j.code === 200) { toast('发送成功！去微信看看收到没'); }
+      else if (j && j.code === 905) { toast('PushPlus 未实名认证：去公众号里点「实名认证」完成'); }
+      else if (j && j.code === 903) { toast('提醒码不对：回公众号重新复制 token'); }
+      else if (j && j.code === 401) { toast('提醒码无效：回公众号重新复制 token'); }
+      else { toast('发送失败（' + (j && j.code ? j.code : '网络') + '），稍后再试'); }
+    })
+    .catch(function () { toast('网络不通，稍后再试'); });
 }
 
 // ---------- 网站内新动态提醒 ----------
@@ -1159,6 +1181,7 @@ document.addEventListener('click', function (e) {
   t = e.target.closest('#btnAddWish'); if (t) { addWish(); return; }
   t = e.target.closest('#btnAddMoment'); if (t) { addMoment(); return; }
   t = e.target.closest('#btnSaveProfile'); if (t) { saveProfile(); return; }
+  t = e.target.closest('#btnTestPush'); if (t) { testPush(); return; }
   t = e.target.closest('#btnCloudConfig'); if (t) { openCloudModal(); return; }
   t = e.target.closest('#btnRefresh'); if (t) { toast('正在刷新…'); loadAll(); return; }
   t = e.target.closest('#btnClearLocal'); if (t) { clearLocalData(); return; }
