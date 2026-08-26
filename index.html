@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>音宝和轩宝的情侣小网站</title>
-<link rel="stylesheet" href="css/style.css?v=9">
+<link rel="stylesheet" href="css/style.css?v=10">
 </head>
 <body>
 
@@ -20,6 +20,10 @@
     <div class="brand"><span class="heart"></span>音宝和轩宝</div>
     <button id="cloudDot" class="cloud-dot" data-tab="mine" title="云端状态"></button>
   </header>
+
+  <button id="newBanner" class="new-banner" hidden>
+    <span class="new-banner-dot"></span><span id="newBannerText"></span>
+  </button>
 
   <main>
 
@@ -136,6 +140,11 @@
         <input id="setMotto" placeholder="一句属于你们的话">
         <label>所在城市（首页看天气）</label>
         <input id="setCity" placeholder="如：永州">
+        <label>我的微信提醒码（推送加 PushPlus）</label>
+        <input id="setTokenMe" placeholder="微信搜「PushPlus 推送加」获取" autocomplete="off">
+        <label>TA 的微信提醒码（推送加 PushPlus）</label>
+        <input id="setTokenTa" placeholder="TA 的（可留空，先填自己的也行）" autocomplete="off">
+        <div class="hint">填了提醒码，对方发新动态时你微信会收到提醒；两人都填好，就能互相收到。保存后云端同步。</div>
         <button class="btn-main" id="btnSaveProfile">保存</button>
       </div>
 
@@ -188,6 +197,7 @@
   <img id="lbImg" src="" alt="">
   <div id="lbMeta" class="lb-meta"></div>
   <div class="lb-btns">
+    <button id="lbShare" class="lb-close">分享</button>
     <button id="lbClose" class="lb-close">关闭</button>
     <button id="lbDel" class="lb-del">删除</button>
   </div>
@@ -195,9 +205,9 @@
 
 <div id="toast"></div>
 
-<script src="js/config.js?v=9"></script>
-<script src="js/store.js?v=9"></script>
-<script src="js/app.js?v=9"></script>
+<script src="js/config.js?v=10"></script>
+<script src="js/store.js?v=10"></script>
+<script src="js/app.js?v=10"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
