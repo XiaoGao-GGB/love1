@@ -229,7 +229,7 @@ function renderHome() {
     if (fromEl) fromEl.textContent = '';
   } else {
     var n = diffDays(p.startDate, todayStr()) + 1;
-    daysEl.textContent = n;
+    daysEl.textContent = n + '天';
     var d1 = parseDay(p.startDate), d2 = new Date();
     var years = d2.getFullYear() - d1.getFullYear();
     var months = d2.getMonth() - d1.getMonth();
