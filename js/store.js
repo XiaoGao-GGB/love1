@@ -36,7 +36,8 @@ var COLUMNS = {
   photochunks: 'PhotoChunk',
   answers: 'DailyAnswer',
   fight: 'FightState',
-  daily: 'DailyQuestion'
+  daily: 'DailyQuestion',
+  checkin: 'CheckIn'
 };
 
 // ---------- 本地演示存储 ----------
@@ -90,8 +91,8 @@ var CloudStore = {
     var self = this;
     var c = getLCConfig();
     var all = [];
-    // 照片分块记录较大，一次少查几条，避免单次查询超过 200KB 限制
-    var batch = key === 'photochunks' ? 6 : 100;
+    // 照片分块、报平安记录较大，一次少查几条，避免单次查询超过 200KB 限制
+    var batch = (key === 'photochunks' || key === 'checkin') ? 8 : 100;
     function page(skip) {
       return fetch(self._url(c, key) + '?limit=' + batch + '&skip=' + skip + '&order=createdAt', { headers: self._headers(c) })
         .then(function (res) { return res.json(); })
