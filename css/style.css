@@ -69,7 +69,6 @@ html, body {
   gap: 14px;
 }
 .login-logo { display: flex; justify-content: center; }
-.login-logo .heart { width: 22px; height: 22px; background: var(--pink); }
 .login-title { font-size: 17px; font-weight: 600; color: var(--ink); text-align: center; }
 .login-btn { margin-top: 2px; }
 .login-hint { font-size: 11px; color: var(--muted); text-align: center; }
