@@ -57,6 +57,7 @@ var state = {
   answers: [],
   fight: null,
   daily: null,
+  checkins: [],
   replyTarget: null,
   wishSeg: 'wish'
 };
@@ -70,7 +71,8 @@ function loadAll() {
   return Promise.all([
     Data.getAll('profile'), Data.getAll('timeline'), Data.getAll('messages'),
     Data.getAll('anniversaries'), Data.getAll('wishes'), Data.getAll('moments'),
-    Data.getAll('photos'), Data.getAll('answers'), Data.getAll('fight'), Data.getAll('daily')
+    Data.getAll('photos'), Data.getAll('answers'), Data.getAll('fight'), Data.getAll('daily'),
+    Data.getAll('checkin')
   ]).then(function (r) {
     state.profile = r[0][0] || defaults();
     state.timeline = r[1].sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
@@ -82,6 +84,7 @@ function loadAll() {
     state.answers = r[7];
     state.fight = r[8][0] || null;
     state.daily = r[9][0] || null;
+    state.checkins = r[10].sort(function (a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); });
     render();
   }).catch(function (e) {
     toast('数据加载失败：' + (e && e.message ? e.message : e));
@@ -119,6 +122,7 @@ function render() {
   renderCloudDot();
   renderHome();
   renderDailyQuestion();
+  renderCheckin();
   renderFight();
   renderNotes();
   renderWish();
@@ -626,6 +630,114 @@ function delPhoto() {
   Promise.all(tasks).then(function () { closeLightbox(); return loadAll(); }).then(loadPhotoChunks);
 }
 
+// ---------- 报平安 · 我在哪 ----------
+function renderCheckin() {
+  var wrap = $('#checkinList');
+  if (!wrap) return;
+  if (!state.checkins.length) {
+    wrap.innerHTML = '<div class="empty">还没有报平安，点右上角「报平安」报一下</div>';
+    return;
+  }
+  wrap.innerHTML = state.checkins.map(function (c) {
+    var note = c.note || '报了个平安';
+    var hasLoc = !(c.lat == null || c.lon == null);
+    var mapLink = hasLoc
+      ? '<a class="checkin-map" target="_blank" rel="noopener" href="https://uri.amap.com/marker?position=' +
+        encodeURIComponent(c.lon) + ',' + encodeURIComponent(c.lat) +
+        '&name=' + encodeURIComponent(note) + '&callnative=0">地图</a>'
+      : '';
+    var photo = c.photo ? '<div class="checkin-photo"><img src="' + c.photo + '" alt=""></div>' : '';
+    return '<div class="checkin-item">' + photo +
+      '<div class="checkin-body">' +
+      '<div class="checkin-note">' + esc(note) + '</div>' +
+      '<div class="checkin-meta">' + esc(c.author) + ' · ' + timeStr(c.createdAt) +
+      (hasLoc ? '' : ' · 无定位') + '</div>' +
+      '</div>' + mapLink +
+      '</div>';
+  }).join('');
+}
+
+function pickCheckinPhoto() {
+  $('#checkinPhoto').click();
+}
+
+// 压成小缩略图：让整条报平安记录（含照片）远小于 40KB，不用分块
+function fileToThumb(file, cb) {
+  var reader = new FileReader();
+  reader.onload = function (e) {
+    var img = new Image();
+    img.onload = function () {
+      var MAX_B64 = 16 * 1024;
+      var maxW = 320, q = 0.5, data;
+      for (;;) {
+        var scale = Math.min(1, maxW / img.width);
+        var w = Math.max(1, Math.round(img.width * scale));
+        var h = Math.max(1, Math.round(img.height * scale));
+        var canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        data = canvas.toDataURL('image/jpeg', q);
+        if (data.length <= MAX_B64 || maxW <= 200) break;
+        maxW = Math.round(maxW * 0.7);
+        q = Math.max(0.35, q - 0.08);
+      }
+      cb(data);
+    };
+    img.onerror = function () { cb(null); };
+    img.src = e.target.result;
+  };
+  reader.onerror = function () { cb(null); };
+  reader.readAsDataURL(file);
+}
+
+function handleCheckinPhotoFile() {
+  var input = $('#checkinPhoto');
+  var file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  fileToThumb(file, function (data) {
+    if (!data) { toast('照片打不开，换一张试试'); return; }
+    openModal(
+      '<div class="modal-title">报平安</div>' +
+      '<img src="' + data + '" class="modal-photo-preview" alt="">' +
+      '<input id="mCheckinNote" placeholder="想说的话（可不填）" autocomplete="off">' +
+      '<div class="modal-hint">确认后会记录你的当前位置，对方能看到你报平安的照片和位置。</div>' +
+      '<div class="modal-btns"><button class="btn-ghost modal-close">取消</button>' +
+      '<button id="btnModalOk" class="btn-main">报平安</button></div>',
+      function () { submitCheckin(data); }
+    );
+  });
+}
+
+function submitCheckin(data) {
+  var note = $('#mCheckinNote').value.trim();
+  var base = { author: state.myName, note: note, photo: data };
+  toast('正在获取位置…');
+  var finished = false;
+  function finish(item) {
+    if (finished) return;
+    // 弹窗已被取消就不要再保存了
+    if (modalCb === null) return;
+    finished = true;
+    Data.save('checkin', item)
+      .then(function () { closeModal(); toast('报平安成功'); return loadAll(); })
+      .catch(function () { toast('保存失败，请检查网络后重试'); });
+  }
+  if (!navigator.geolocation) {
+    toast('设备不支持定位，已记为普通报平安');
+    finish(base);
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    function (pos) {
+      finish(Object.assign({}, base, { lat: pos.coords.latitude, lon: pos.coords.longitude }));
+    },
+    function () { toast('没拿到定位，已记为普通报平安'); finish(base); },
+    { timeout: 10000, maximumAge: 60000 }
+  );
+}
+
 // ---------- 我的 ----------
 function setField(el, v) {
   if (document.activeElement !== el) el.value = v;
@@ -856,6 +968,7 @@ document.addEventListener('click', function (e) {
   t = e.target.closest('#btnRedeem'); if (t) { redeemTask(); return; }
   t = e.target.closest('#btnMakeup'); if (t) { makeup(); return; }
   t = e.target.closest('#btnAddPhoto'); if (t) { pickPhoto(); return; }
+  t = e.target.closest('#btnCheckin'); if (t) { pickCheckinPhoto(); return; }
   t = e.target.closest('#lbClose'); if (t) { closeLightbox(); return; }
   t = e.target.closest('#lbDel'); if (t) { delPhoto(); return; }
   t = e.target.closest('.lightbox'); if (t && t === e.target) { closeLightbox(); return; }
@@ -883,6 +996,7 @@ $('#wishInput').addEventListener('keydown', function (e) { if (e.key === 'Enter'
 $('#momentInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') addMoment(); });
 $('#dqInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') submitDailyQuestion(); });
 $('#photoFile').addEventListener('change', handlePhotoFile);
+$('#checkinPhoto').addEventListener('change', handleCheckinPhotoFile);
 
 // ---------- 启动 ----------
 (function init() {
