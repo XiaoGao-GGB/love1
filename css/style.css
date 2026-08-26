@@ -294,43 +294,6 @@ main { padding: 12px 16px 96px; }
 .anniv-name { font-weight: 600; font-size: 14px; }
 .anniv-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
 
-/* ---------- 每日一问 ---------- */
-.dq-title { display: flex; align-items: center; justify-content: space-between; }
-.dq-question {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--ink);
-  line-height: 1.6;
-  margin-bottom: 12px;
-}
-.dq-answer-wrap { display: flex; gap: 8px; margin-bottom: 12px; }
-.dq-answer-wrap input {
-  flex: 1;
-  min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 14px;
-  outline: none;
-  background: #fff;
-}
-.dq-answer-wrap input:focus { border-color: #a9cfba; }
-.dq-row {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  padding: 9px 12px;
-  background: #f1f7fb;
-  border-radius: 10px;
-  margin-bottom: 8px;
-  font-size: 13px;
-  line-height: 1.5;
-}
-.dq-row .who { font-weight: 600; color: #4a7c92; flex: 0 0 auto; }
-.dq-row .txt { color: #41525c; word-break: break-word; }
-.dq-row.mine { background: var(--primary-soft); }
-.dq-row.mine .who { color: var(--primary); }
-
 /* ---------- 吵架和好卡 ---------- */
 .fight-idle { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
 .fight-state { color: var(--danger); font-size: 13px; margin-bottom: 8px; }
@@ -393,16 +356,7 @@ main { padding: 12px 16px 96px; }
   padding: 5px 12px;
   cursor: pointer;
 }
-.checkin-del {
-  flex: 0 0 auto;
-  font-size: 12px;
-  color: var(--danger);
-  border: 1px solid #f0cfc7;
-  background: #fdf4f2;
-  border-radius: 8px;
-  padding: 5px 12px;
-  cursor: pointer;
-}
+.checkin-tip { margin: 0 4px 8px; }
 
 /* 新动态提醒条 */
 .new-banner:not([hidden]) {
@@ -640,6 +594,22 @@ main { padding: 12px 16px 96px; }
 /* ---------- 我的 ---------- */
 .form-card { padding: 16px 16px 18px; }
 .form-title { font-weight: 600; font-size: 14px; margin-bottom: 12px; }
+.collapse-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+.collapse-arrow { font-size: 12px; color: var(--muted); transition: transform .2s; }
+.collapsible.collapsed .collapse-arrow { transform: rotate(90deg); }
+.collapsible.collapsed .collapse-body { display: none; }
 .form-card label {
   display: block;
   font-size: 12px;
