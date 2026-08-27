@@ -350,21 +350,13 @@ function renderTimeline() {
 }
 
 // ---------- 吵架和好卡 ----------
-var MAKEUP_TASKS = [
-  '抱抱 30 秒',
-  '亲一下额头',
-  '说三句真心话',
-  '大声说「我爱你」',
-  '给对方按摩 5 分钟',
-  '一起去吃顿好的',
-  '写一张道歉小纸条',
-  '讲一件最糗的事逗 TA 笑',
-  '手牵手散步 10 分钟',
-  '做 TA 最爱吃的一顿饭'
-];
-
-function randomTask() {
-  return MAKEUP_TASKS[Math.floor(Math.random() * MAKEUP_TASKS.length)];
+// 吵架开始时间显示用
+function fmtFightTime(iso) {
+  if (!iso) return '';
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 ' +
+    String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
 }
 
 function renderFight() {
@@ -380,15 +372,13 @@ function renderFight() {
     }
     card.innerHTML =
       '<div class="card-title">吵架和好卡</div>' +
-      '<div class="fight-state">在吵架中 · ' + esc(f.triggeredBy) + ' 按下的</div>' +
-      '<div class="fight-task">和好卡：' + esc(f.task) + '</div>' +
+      '<div class="fight-state">在吵架中 · ' + esc(f.triggeredBy) + ' 按下的' + (f.startedAt ? ' · 开始于 ' + fmtFightTime(f.startedAt) : '') + '</div>' +
       wantsHtml +
       '<div class="fight-want-form">' +
       '<input id="fightWantInput" placeholder="我想要…（想吃什么 / 想干什么）" autocomplete="off">' +
       '<button class="btn-ghost btn-small" id="btnWant">告诉TA</button>' +
       '</div>' +
       '<div class="fight-row">' +
-      '<button class="btn-ghost" id="btnRedeem">重新抽一张</button>' +
       '<button class="btn-main" id="btnMakeup">我们和好了</button>' +
       '</div>';
     var wi = $('#fightWantInput');
@@ -422,14 +412,9 @@ function startFight() {
   Data.save('fight', Object.assign({}, base, {
     active: true,
     triggeredBy: state.myName,
-    task: randomTask(),
+    startedAt: new Date().toISOString(),
     wants: []
   })).then(loadAll);
-}
-
-function redeemTask() {
-  if (!state.fight) return;
-  Data.save('fight', Object.assign({}, state.fight, { task: randomTask() })).then(loadAll);
 }
 
 function makeup() {
@@ -1186,11 +1171,30 @@ function tryAutoLogin() {
     return true;
   }).catch(function () { return false; });
 }
+var _loginUser = '';
+// 生成登录页的两个身份按钮（账号只能选，密码自己输）
+function renderLoginUsers() {
+  var box = $('#loginUsers');
+  if (!box) return;
+  (window.LOGIN_USERS || []).forEach(function (u) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'login-user';
+    b.innerHTML = '<span class="login-user-name">' + (u.role === 'me' ? '音宝' : '轩宝') + '</span>' +
+      '<span class="login-user-id">' + u.user + '</span>';
+    b.addEventListener('click', function () {
+      _loginUser = u.user;
+      $$('.login-user').forEach(function (x) { x.classList.remove('sel'); });
+      b.classList.add('sel');
+    });
+    box.appendChild(b);
+  });
+}
 function doLogin() {
-  var user = $('#loginUser').value.trim();
+  if (!_loginUser) { toast('先选一个账号'); return; }
   var pass = $('#loginPass').value;
-  var u = (window.LOGIN_USERS || []).filter(function (x) { return x.user === user && x.pass === pass; })[0];
-  if (!u) { toast('账号或密码不对'); return; }
+  var u = (window.LOGIN_USERS || []).filter(function (x) { return x.user === _loginUser && x.pass === pass; })[0];
+  if (!u) { toast('密码不对'); return; }
   applyLogin(u);
   loadAll();
 }
@@ -1237,7 +1241,6 @@ document.addEventListener('click', function (e) {
   t = e.target.closest('#btnLogout'); if (t) { doLogout(); return; }
   t = e.target.closest('#btnFight'); if (t) { startFight(); return; }
   t = e.target.closest('#btnWant'); if (t) { submitWant(); return; }
-  t = e.target.closest('#btnRedeem'); if (t) { redeemTask(); return; }
   t = e.target.closest('#btnMakeup'); if (t) { makeup(); return; }
   t = e.target.closest('#btnAddPhoto'); if (t) { pickPhoto(); return; }
   t = e.target.closest('#btnCheckin'); if (t) { pickCheckinPhoto(); return; }
@@ -1266,7 +1269,6 @@ document.addEventListener('click', function (e) {
   if (t) { state.wishSeg = t.dataset.seg; renderWish(); return; }
 });
 
-$('#loginUser').addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
 $('#loginPass').addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
 $('#noteInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') sendNote(); });
 $('#wishInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') addWish(); });
@@ -1276,6 +1278,7 @@ $('#checkinPhoto').addEventListener('change', handleCheckinPhotoFile);
 
 // ---------- 启动 ----------
 (function init() {
+  renderLoginUsers();
   // 先自动登录（可能要异步去 IndexedDB 找凭证），登录完再开始渲染和拉数据
   tryAutoLogin().then(function () {
     render();
