@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>音宝和轩宝的情侣小网站</title>
-<link rel="stylesheet" href="css/style.css?v=25">
+<link rel="stylesheet" href="css/style.css?v=26">
 </head>
 <body>
 
@@ -126,15 +126,6 @@
       <div id="photoGrid" class="photo-grid"></div>
     </section>
 
-    <!-- 时光：时光轴 -->
-    <section id="page-timeline" class="page">
-      <div class="section-head">
-        <span>我们的时光</span>
-        <button class="icon-btn" id="btnAddEvent">＋</button>
-      </div>
-      <div id="timelineList" class="timeline"></div>
-    </section>
-
     <!-- 我的：设置 -->
     <section id="page-mine" class="page">
       <div class="card form-card" style="text-align:center">
@@ -210,7 +201,6 @@
     <button data-tab="notes">留言</button>
     <button data-tab="wish">心愿</button>
     <button data-tab="photos">照片</button>
-    <button data-tab="timeline">时光</button>
     <button data-tab="mine">我的</button>
   </nav>
 </div>
@@ -228,6 +218,7 @@
   <div id="lbMeta" class="lb-meta"></div>
   <div class="lb-btns">
     <button id="lbShare" class="lb-close">分享</button>
+    <button id="lbSave" class="lb-close" hidden>保存图片</button>
     <button id="lbClose" class="lb-close">关闭</button>
     <button id="lbDel" class="lb-del">删除</button>
   </div>
@@ -235,9 +226,9 @@
 
 <div id="toast"></div>
 
-<script src="js/config.js?v=25"></script>
-<script src="js/store.js?v=25"></script>
-<script src="js/app.js?v=25"></script>
+<script src="js/config.js?v=26"></script>
+<script src="js/store.js?v=26"></script>
+<script src="js/app.js?v=26"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
