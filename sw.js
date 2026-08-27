@@ -1,12 +1,12 @@
 /* 音宝轩宝 情侣小网站 · 离线缓存（PWA） */
-const CACHE = 'love-site-v21';
+const CACHE = 'love-site-v22';
 const CORE = [
   './',
   './index.html',
-  './css/style.css?v=21',
-  './js/config.js?v=21',
-  './js/store.js?v=21',
-  './js/app.js?v=21'
+  './css/style.css?v=22',
+  './js/config.js?v=22',
+  './js/store.js?v=22',
+  './js/app.js?v=22'
 ];
 
 // 安装：预缓存核心文件
