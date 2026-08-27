@@ -48,7 +48,6 @@ var state = {
   myName: localStorage.getItem('love_myname') || '音宝',
   myRole: '',
   profile: null,
-  timeline: [],
   messages: [],
   anniversaries: [],
   wishes: [],
@@ -68,20 +67,19 @@ function defaults() {
 // ---------- 数据加载与渲染 ----------
 function loadAll() {
   return Promise.all([
-    Data.getAll('profile'), Data.getAll('timeline'), Data.getAll('messages'),
+    Data.getAll('profile'), Data.getAll('messages'),
     Data.getAll('anniversaries'), Data.getAll('wishes'), Data.getAll('moments'),
     Data.getAll('photos'), Data.getAll('fight'),
     Data.getAll('checkin')
   ]).then(function (r) {
     state.profile = r[0][0] || defaults();
-    state.timeline = r[1].sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); });
-    state.messages = r[2];
-    state.anniversaries = r[3];
-    state.wishes = r[4];
-    state.moments = r[5].sort(function (a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); });
-    state.photos = r[6].sort(function (a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); });
-    state.fight = r[7][0] || null;
-    state.checkins = r[8].sort(function (a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); });
+    state.messages = r[1];
+    state.anniversaries = r[2];
+    state.wishes = r[3];
+    state.moments = r[4].sort(function (a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); });
+    state.photos = r[5].sort(function (a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); });
+    state.fight = r[6][0] || null;
+    state.checkins = r[7].sort(function (a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); });
     render();
     updateNewBanner();
     heartbeat();
@@ -126,7 +124,6 @@ function render() {
   renderNotes();
   renderWish();
   renderPhotos();
-  renderTimeline();
   renderMine();
 }
 
@@ -337,23 +334,6 @@ function renderWish() {
   }
 }
 
-// ---------- 时光轴 ----------
-function renderTimeline() {
-  var wrap = $('#timelineList');
-  if (!state.timeline.length) {
-    wrap.innerHTML = '<div class="empty">点右上角 ＋，记下重要的时刻</div>';
-    return;
-  }
-  wrap.innerHTML = state.timeline.map(function (e) {
-    return '<div class="tl-item">' +
-      '<div class="tl-date">' + fmtDate(e.date) + '</div>' +
-      '<div class="tl-title">' + esc(e.title) + '</div>' +
-      (e.note ? '<div class="tl-note">' + esc(e.note) + '</div>' : '') +
-      '<button class="del tl-del" data-del-tl="' + esc(e.id) + '">×</button>' +
-      '</div>';
-  }).join('');
-}
-
 // ---------- 情绪卡 ----------
 // 不开心开始时间显示用
 function fmtFightTime(iso) {
@@ -434,6 +414,7 @@ function makeup() {
 
 // ---------- 照片墙 ----------
 var lbPhotoId = null;
+var lbCheckinData = '';
 
 function renderPhotos() {
   var grid = $('#photoGrid');
@@ -536,15 +517,46 @@ function openLightbox(id) {
   var p = state.photos.find(function (x) { return x.id === id; });
   if (!p) return;
   lbPhotoId = id;
+  lbCheckinData = '';
   $('#lbImg').src = p.data;
   $('#lbMeta').innerHTML = (p.caption ? esc(p.caption) + '<br>' : '') + esc(p.author) + ' · ' + timeStr(p.createdAt);
+  $('#lbShare').hidden = false;
+  $('#lbDel').hidden = false;
+  $('#lbSave').hidden = true;
   $('#lightbox').hidden = false;
   document.body.style.overflow = 'hidden';
+}
+
+// 报平安照片：点开大图查看 + 保存
+function openCheckinLightbox(i) {
+  var c = state.checkins[i];
+  if (!c || !c.photo) return;
+  lbPhotoId = null;
+  lbCheckinData = c.photo;
+  $('#lbImg').src = c.photo;
+  $('#lbMeta').innerHTML = esc(c.author || 'TA') + ' · ' + timeStr(c.createdAt) +
+    '<br><span style="font-size:11px;opacity:.8">点「保存图片」或长按图片可存到手机</span>';
+  $('#lbShare').hidden = true;
+  $('#lbDel').hidden = true;
+  $('#lbSave').hidden = false;
+  $('#lightbox').hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+function saveLbImage() {
+  if (!lbCheckinData) return;
+  var a = document.createElement('a');
+  a.href = lbCheckinData;
+  a.download = 'baoping_' + Date.now() + '.jpg';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function () { a.remove(); }, 800);
+  toast('已保存（安卓在「下载」，iPhone 看图后长按存相册）');
 }
 
 function closeLightbox() {
   $('#lightbox').hidden = true;
   lbPhotoId = null;
+  lbCheckinData = '';
   document.body.style.overflow = '';
 }
 
@@ -610,7 +622,7 @@ function renderCheckin() {
         encodeURIComponent(g.lon) + ',' + encodeURIComponent(g.lat) +
         '&name=' + encodeURIComponent(note) + '&callnative=0">地图</a>';
     }
-    var photo = c.photo ? '<div class="checkin-photo"><img src="' + c.photo + '" alt=""></div>' : '';
+    var photo = c.photo ? '<div class="checkin-photo" data-view-checkin="' + i + '"><img src="' + c.photo + '" alt=""></div>' : '';
     return '<div class="checkin-item">' + photo +
       '<div class="checkin-body">' +
       '<div class="checkin-note">' + esc(note) + '</div>' +
@@ -1089,24 +1101,6 @@ function openAnnivModal() {
   );
 }
 
-function openEventModal() {
-  openModal(
-    '<div class="modal-title">记下一个时刻</div>' +
-    '<input id="mEventDate" type="date">' +
-    '<input id="mEventTitle" placeholder="标题（如：第一次旅行）" autocomplete="off">' +
-    '<input id="mEventNote" placeholder="想说的话（可不填）" autocomplete="off">' +
-    '<div class="modal-btns"><button class="btn-ghost modal-close">取消</button>' +
-    '<button id="btnModalOk" class="btn-main">保存</button></div>',
-    function () {
-      var date = $('#mEventDate').value;
-      var title = $('#mEventTitle').value.trim();
-      if (!date || !title) { toast('日期和标题都要填哦'); return; }
-      Data.save('timeline', { date: date, title: title, note: $('#mEventNote').value.trim(), author: state.myName })
-        .then(function () { closeModal(); return loadAll(); });
-    }
-  );
-}
-
 function openCloudModal() {
   var c = getLCConfig();
   openModal(
@@ -1191,10 +1185,6 @@ function delMoment(id) {
   if (!confirm('删除这条小确幸？')) return;
   Data.remove('moments', id).then(loadAll);
 }
-function delTimeline(id) {
-  if (!confirm('删除这个时刻？')) return;
-  Data.remove('timeline', id).then(loadAll);
-}
 function delNote(id) {
   if (!confirm('撤回这条留言？')) return;
   Data.remove('messages', id).then(loadAll);
@@ -1243,7 +1233,7 @@ function saveProfile() {
 }
 
 // ---------- 数据备份 / 恢复 ----------
-var BACKUP_KEYS = ['profile', 'timeline', 'messages', 'anniversaries', 'wishes', 'moments', 'photos', 'photochunks', 'fight', 'checkin'];
+var BACKUP_KEYS = ['profile', 'messages', 'anniversaries', 'wishes', 'moments', 'photos', 'photochunks', 'fight', 'checkin'];
 function backupData() {
   toast('正在打包，稍等…');
   Promise.all(BACKUP_KEYS.map(function (k) { return Data.getAll(k); }))
@@ -1443,7 +1433,6 @@ document.addEventListener('click', function (e) {
   if (t) { markAllSeen(); switchTab('home'); return; }
 
   t = e.target.closest('#btnAddAnniv'); if (t) { openAnnivModal(); return; }
-  t = e.target.closest('#btnAddEvent'); if (t) { openEventModal(); return; }
   t = e.target.closest('#btnSendNote'); if (t) { sendNote(); return; }
   t = e.target.closest('#btnAddWish'); if (t) { addWish(); return; }
   t = e.target.closest('#btnAddMoment'); if (t) { addMoment(); return; }
@@ -1467,6 +1456,7 @@ document.addEventListener('click', function (e) {
   t = e.target.closest('#lbClose'); if (t) { closeLightbox(); return; }
   t = e.target.closest('#lbDel'); if (t) { delPhoto(); return; }
   t = e.target.closest('#lbShare'); if (t) { sharePhoto(); return; }
+  t = e.target.closest('#lbSave'); if (t) { saveLbImage(); return; }
   t = e.target.closest('.lightbox'); if (t && t === e.target) { closeLightbox(); return; }
   t = e.target.closest('#btnCancelReply'); if (t) { state.replyTarget = null; renderReplyHint(); return; }
   t = e.target.closest('#btnModalOk'); if (t) { submitModal(); return; }
@@ -1476,12 +1466,12 @@ document.addEventListener('click', function (e) {
   t = e.target.closest('[data-reply]'); if (t) { setReply(t.dataset.reply); return; }
   t = e.target.closest('[data-share-note]'); if (t) { shareNote(t.dataset.shareNote); return; }
   t = e.target.closest('[data-share-checkin]'); if (t) { shareCheckin(+t.dataset.shareCheckin); return; }
+  t = e.target.closest('[data-view-checkin]'); if (t) { openCheckinLightbox(+t.dataset.viewCheckin); return; }
   t = e.target.closest('[data-del-note]'); if (t) { delNote(t.dataset.delNote); return; }
   t = e.target.closest('[data-toggle-wish]'); if (t) { toggleWish(t.dataset.toggleWish); return; }
   t = e.target.closest('[data-del-anniv]'); if (t) { delAnniv(t.dataset.delAnniv); return; }
   t = e.target.closest('[data-del-wish]'); if (t) { delWish(t.dataset.delWish); return; }
   t = e.target.closest('[data-del-moment]'); if (t) { delMoment(t.dataset.delMoment); return; }
-  t = e.target.closest('[data-del-tl]'); if (t) { delTimeline(t.dataset.delTl); return; }
   t = e.target.closest('[data-photo]'); if (t) { openLightbox(t.dataset.photo); return; }
 
 
