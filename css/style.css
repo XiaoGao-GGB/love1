@@ -72,6 +72,24 @@ html, body {
 .login-title { font-size: 17px; font-weight: 600; color: var(--ink); text-align: center; }
 .login-btn { margin-top: 2px; }
 .login-hint { font-size: 11px; color: var(--muted); text-align: center; }
+.login-users { display: flex; gap: 10px; }
+.login-user {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 8px;
+  border: 1.5px solid #e3e9f0;
+  border-radius: 12px;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.login-user-name { font-size: 15px; font-weight: 600; color: var(--ink); }
+.login-user-id { font-size: 11px; color: var(--muted); letter-spacing: .3px; }
+.login-user.sel { border-color: #ff8ba0; background: #fff0f3; }
+.login-user.sel .login-user-name { color: #e14b63; }
 
 .brand {
   display: flex;
@@ -297,17 +315,6 @@ main { padding: 12px 16px 96px; }
 /* ---------- 吵架和好卡 ---------- */
 .fight-idle { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
 .fight-state { color: var(--danger); font-size: 13px; margin-bottom: 8px; }
-.fight-task {
-  font-size: 15px;
-  font-weight: 600;
-  color: #b34a3d;
-  background: #fdf1ef;
-  border: 1px dashed #f0c4ba;
-  border-radius: 12px;
-  padding: 14px;
-  margin-bottom: 12px;
-  text-align: center;
-}
 .fight-row { display: flex; gap: 8px; }
 .fight-row .btn-main,
 .fight-row .btn-ghost { flex: 1; }
