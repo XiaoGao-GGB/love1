@@ -120,6 +120,7 @@ function loadPhotoChunks() {
 function render() {
   renderCloudDot();
   renderHome();
+  renderPartnerLoc();
   renderCheckin();
   renderFight();
   renderNotes();
@@ -917,6 +918,102 @@ function fmtLastActive(iso) {
   if (diff < 172800000) return '昨天 ' + hm;
   return (d.getMonth() + 1) + '月' + d.getDate() + '日';
 }
+
+// ---------- 自动定位共享（打开网站自动定位，对方看得到在哪） ----------
+function fetchTimeout(url, ms, opts) {
+  var ctrl = new AbortController();
+  var timer = setTimeout(function () { ctrl.abort(); }, ms);
+  return fetch(url, Object.assign({ signal: ctrl.signal }, opts || {}))
+    .then(function (r) { clearTimeout(timer); return r; },
+           function (e) { clearTimeout(timer); throw e; });
+}
+function pickPlace(j) {
+  if (!j || !j.display_name) return '';
+  var parts = j.display_name.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+  if (!parts.length) return '';
+  return parts.slice(0, Math.min(3, parts.length)).join('');
+}
+function reverseGeocode(lat, lon, cb) {
+  function nomi() {
+    var url = 'https://nominatim.openstreetmap.org/reverse?lat=' + lat + '&lon=' + lon +
+      '&format=jsonv2&accept-language=zh-CN';
+    fetchTimeout(url, 8000, { headers: { 'Accept-Language': 'zh-CN' } })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var name = pickPlace(j);
+        if (name) cb(name); else bigdc();
+      })
+      .catch(bigdc);
+  }
+  function bigdc() {
+    var url = 'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + lat +
+      '&longitude=' + lon + '&localityLanguage=zh';
+    fetchTimeout(url, 8000)
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var name = '';
+        if (j) {
+          var parts = [j.locality, j.principalSubdivision].filter(Boolean);
+          name = parts.join('');
+        }
+        cb(name);
+      })
+      .catch(function () { cb(''); });
+  }
+  nomi();
+}
+function autoShareLoc(force) {
+  if (!state.myRole) return;
+  var p = state.profile;
+  if (!p) return;
+  var pre = state.myRole === 'me' ? 'Me' : 'Ta';
+  var last = p['lastLocTime' + pre];
+  if (!force && last && Date.now() - new Date(last).getTime() < 180000) return; // 3分钟内不重复定位
+  getLocation(function (loc) {
+    reverseGeocode(loc.lat, loc.lon, function (place) {
+      var np = Object.assign({}, state.profile);
+      np['lastLat' + pre] = loc.lat;
+      np['lastLng' + pre] = loc.lon;
+      np['lastPlace' + pre] = place;
+      np['lastLocAcc' + pre] = loc.acc || 0;
+      np['lastLocTime' + pre] = new Date().toISOString();
+      Data.save('profile', np).then(function () {
+        state.profile = np;
+        renderPartnerLoc();
+      }).catch(function () {});
+    });
+  }, function () {
+    if (force) toast('定位没成功（室内没信号，或没给定位权限）');
+  });
+}
+function renderPartnerLoc() {
+  var el = $('#partnerLoc');
+  if (!el) return;
+  var p = state.profile || {};
+  var me = state.myRole === 'me';
+  var taName = me ? (p.nicknameTa || '轩宝') : (p.nicknameMe || '音宝');
+  var lat = me ? p.lastLatTa : p.lastLatMe;
+  var lng = me ? p.lastLngTa : p.lastLngMe;
+  var place = me ? (p.lastPlaceTa || '') : (p.lastPlaceMe || '');
+  var time = me ? p.lastLocTimeTa : p.lastLocTimeMe;
+  var acc = me ? p.lastLocAccTa : p.lastLocAccMe;
+  var refresh = '<button class="btn-ghost btn-small" id="btnUpdateLoc">更新我的位置</button>';
+  if (lat == null || lng == null) {
+    el.innerHTML = '<div class="loc-empty">' + esc(taName) + ' 还没打开过网站共享位置。</div>' + refresh;
+    return;
+  }
+  var gcj = wgs84ToGcj02(Number(lat), Number(lng));
+  var mapUrl = 'https://uri.amap.com/marker?position=' + encodeURIComponent(gcj.lon) + ',' + encodeURIComponent(gcj.lat) +
+    '&name=' + encodeURIComponent(place || taName) + '&callnative=0';
+  var where = place || ('坐标 ' + Number(lat).toFixed(4) + '，' + Number(lng).toFixed(4));
+  el.innerHTML =
+    '<div class="loc-main">' + esc(taName) + ' 现在在：<b>' + esc(where) + '</b></div>' +
+    '<div class="loc-meta">更新于 ' + fmtLastActive(time) + (acc ? ' · 精度 ±' + acc + ' 米' : '') + '</div>' +
+    '<div class="row row-gap">' +
+    '<a class="btn-ghost btn-small" target="_blank" rel="noopener" href="' + mapUrl + '">看地图</a>' +
+    refresh +
+    '</div>';
+}
 function renderMine() {
   var p = state.profile || defaults();
   setField($('#setMe'), p.nicknameMe || '');
@@ -1354,6 +1451,7 @@ document.addEventListener('click', function (e) {
   t = e.target.closest('#btnSaveProfile'); if (t) { saveProfile(); return; }
   t = e.target.closest('#btnTestPush'); if (t) { testPush(); return; }
   t = e.target.closest('#btnBackup'); if (t) { backupData(); return; }
+  t = e.target.closest('#btnUpdateLoc'); if (t) { autoShareLoc(true); return; }
   t = e.target.closest('#btnRestore'); if (t) { $('#backupFile').click(); return; }
   t = e.target.closest('#myAvatar'); if (t) { $('#avatarFile').click(); return; }
   t = e.target.closest('#btnCloudConfig'); if (t) { openCloudModal(); return; }
@@ -1410,7 +1508,10 @@ $('#backupFile').addEventListener('change', handleBackupFile);
     updateClock();
     setInterval(updateClock, 1000);
     setInterval(refreshWeather, 30 * 60 * 1000);
-    return loadAll().then(refreshWeather);
+    return loadAll().then(function () {
+      refreshWeather();
+      autoShareLoc(false);
+    });
   });
 
   // 云端模式每 12 秒自动刷新一次，接近实时同步
