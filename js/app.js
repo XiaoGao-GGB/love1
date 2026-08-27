@@ -46,6 +46,7 @@ function timeStr(iso) {
 // ---------- 状态 ----------
 var state = {
   myName: localStorage.getItem('love_myname') || '音宝',
+  myRole: '',
   profile: null,
   timeline: [],
   messages: [],
@@ -83,6 +84,7 @@ function loadAll() {
     state.checkins = r[8].sort(function (a, b) { return String(b.createdAt || '').localeCompare(String(a.createdAt || '')); });
     render();
     updateNewBanner();
+    heartbeat();
   }).catch(function (e) {
     toast('数据加载失败：' + (e && e.message ? e.message : e));
   });
@@ -284,8 +286,10 @@ function renderNotes() {
     var reply = m.replyTo ? state.messages.find(function (x) { return x.id === m.replyTo; }) : null;
     var replyHtml = reply
       ? '<div class="replyto">↩ ' + esc(reply.author) + '：' + esc(reply.content) + '</div>' : '';
+    var av = avatarOf(m.author);
+    var avHtml = av ? '<img class="avatar" src="' + av + '">' : '';
     return '<div class="note' + (mine ? ' mine' : '') + '">' +
-      '<div class="meta">' + esc(m.author) + ' · ' + timeStr(m.createdAt) + '</div>' +
+      '<div class="meta">' + avHtml + esc(m.author) + ' · ' + timeStr(m.createdAt) + '</div>' +
       replyHtml +
       '<div class="note-body">' + esc(m.content) + '</div>' +
       '<button class="note-reply" data-reply="' + esc(m.id) + '">回复</button>' +
@@ -349,8 +353,8 @@ function renderTimeline() {
   }).join('');
 }
 
-// ---------- 吵架和好卡 ----------
-// 吵架开始时间显示用
+// ---------- 情绪卡 ----------
+// 不开心开始时间显示用
 function fmtFightTime(iso) {
   if (!iso) return '';
   var d = new Date(iso);
@@ -370,29 +374,31 @@ function renderFight() {
         return '<div class="fight-want"><span class="who">' + esc(w.author) + '</span>想要：' + esc(w.text) + '</div>';
       }).join('') + '</div>';
     }
+    var av = avatarOf(f.triggeredBy);
+    var avHtml = av ? '<img class="avatar" src="' + av + '">' : '';
     card.innerHTML =
-      '<div class="card-title">吵架和好卡</div>' +
-      '<div class="fight-state">在吵架中 · ' + esc(f.triggeredBy) + ' 按下的' + (f.startedAt ? ' · 开始于 ' + fmtFightTime(f.startedAt) : '') + '</div>' +
+      '<div class="card-title">情绪卡</div>' +
+      '<div class="fight-state">' + avHtml + esc(f.triggeredBy) + ' 不开心了' + (f.startedAt ? ' · 开始于 ' + fmtFightTime(f.startedAt) : '') + '</div>' +
       wantsHtml +
       '<div class="fight-want-form">' +
-      '<input id="fightWantInput" placeholder="我想要…（想吃什么 / 想干什么）" autocomplete="off">' +
+      '<input id="fightWantInput" placeholder="我想要…（想被抱抱 / 想吃好吃的）" autocomplete="off">' +
       '<button class="btn-ghost btn-small" id="btnWant">告诉TA</button>' +
       '</div>' +
       '<div class="fight-row">' +
-      '<button class="btn-main" id="btnMakeup">我们和好了</button>' +
+      '<button class="btn-main" id="btnMakeup">我已经好了</button>' +
       '</div>';
     var wi = $('#fightWantInput');
     if (wi) wi.addEventListener('keydown', function (e) { if (e.key === 'Enter') submitWant(); });
   } else {
     card.classList.remove('fighting');
     card.innerHTML =
-      '<div class="card-title">吵架和好卡</div>' +
-      '<div class="fight-idle">今天我们好好的。</div>' +
-      '<button class="btn-ghost" id="btnFight">我们吵架了</button>';
+      '<div class="card-title">情绪卡</div>' +
+      '<div class="fight-idle">今天心情都不错。</div>' +
+      '<button class="btn-ghost" data-mood="' + state.myName + '">我不开心</button>';
   }
 }
 
-// 告诉对方吵架时我想要什么（想吃的 / 想做的事）
+// 告诉对方我心情不好时想要什么
 function submitWant() {
   var f = state.fight;
   if (!f || !f.active) return;
@@ -407,14 +413,17 @@ function submitWant() {
   }).catch(function () { toast('保存失败，请检查网络后重试'); });
 }
 
-function startFight() {
+function startFight(who) {
   var base = state.fight || {};
   Data.save('fight', Object.assign({}, base, {
     active: true,
-    triggeredBy: state.myName,
+    triggeredBy: who,
     startedAt: new Date().toISOString(),
     wants: []
-  })).then(loadAll);
+  })).then(function () {
+    notifyPartner('情绪卡', who + '不开心了，去看看 TA 想要什么');
+    return loadAll();
+  });
 }
 
 function makeup() {
@@ -872,6 +881,42 @@ function setField(el, v) {
   if (document.activeElement !== el) el.value = v;
 }
 
+// ---------- 头像 / 最近活跃 / 备份 ----------
+function myAvatar() {
+  var p = state.profile || {};
+  return state.myRole === 'me' ? (p.avatarMe || '') : (p.avatarTa || '');
+}
+function avatarOf(name) {
+  var p = state.profile || {};
+  if (name === state.myName) return myAvatar();
+  var me = p.nicknameMe || '音宝';
+  var ta = p.nicknameTa || '轩宝';
+  if (name === me) return p.avatarMe || '';
+  if (name === ta) return p.avatarTa || '';
+  return '';
+}
+function heartbeat() {
+  var p = state.profile;
+  if (!p || !state.myRole) return;
+  var field = state.myRole === 'me' ? 'lastActiveMe' : 'lastActiveTa';
+  var prev = p[field];
+  if (prev && Date.now() - new Date(prev).getTime() < 60000) return;
+  var np = Object.assign({}, p);
+  np[field] = new Date().toISOString();
+  Data.save('profile', np).catch(function () {});
+}
+function fmtLastActive(iso) {
+  if (!iso) return '还没记录';
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '还没记录';
+  var hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  var diff = Date.now() - d.getTime();
+  if (diff < 60000) return '刚刚';
+  if (diff < 3600000) return Math.round(diff / 60000) + ' 分钟前';
+  if (diff < 86400000) return '今天 ' + hm;
+  if (diff < 172800000) return '昨天 ' + hm;
+  return (d.getMonth() + 1) + '月' + d.getDate() + '日';
+}
 function renderMine() {
   var p = state.profile || defaults();
   setField($('#setMe'), p.nicknameMe || '');
@@ -881,6 +926,20 @@ function renderMine() {
   setField($('#setCity'), p.city || '');
   setField($('#setTokenMe'), p.tokenMe || '');
   setField($('#setTokenTa'), p.tokenTa || '');
+
+  // 我的头像
+  var myAv = myAvatar();
+  var avEl = $('#myAvatar');
+  if (avEl) {
+    avEl.innerHTML = myAv
+      ? '<img class="avatar-lg" src="' + myAv + '">'
+      : '<div class="avatar-placeholder">' + esc(state.myName) + '</div>';
+  }
+
+  // TA 最后在线
+  var taActive = state.myRole === 'me' ? p.lastActiveTa : p.lastActiveMe;
+  var taEl = $('#taActive');
+  if (taEl) taEl.textContent = 'TA 最后在线：' + fmtLastActive(taActive);
 
   $('#cloudStatus').textContent = Data.cloudMode()
     ? '已连接云端：填入同一密钥的两人实时同步。'
@@ -1086,6 +1145,65 @@ function saveProfile() {
   Data.save('profile', p).then(function () { toast('已保存'); return loadAll(); }).then(refreshWeather);
 }
 
+// ---------- 数据备份 / 恢复 ----------
+var BACKUP_KEYS = ['profile', 'timeline', 'messages', 'anniversaries', 'wishes', 'moments', 'photos', 'photochunks', 'fight', 'checkin'];
+function backupData() {
+  toast('正在打包，稍等…');
+  Promise.all(BACKUP_KEYS.map(function (k) { return Data.getAll(k); }))
+    .then(function (results) {
+      var data = {};
+      BACKUP_KEYS.forEach(function (k, i) { data[k] = results[i]; });
+      var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'love_backup_' + todayStr() + '.json';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); if (a.parentNode) a.parentNode.removeChild(a); }, 800);
+      toast('备份文件已存到手机');
+    })
+    .catch(function (e) { toast('备份失败：' + ((e && e.message) || e)); });
+}
+function handleBackupFile() {
+  var input = $('#backupFile');
+  var file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  if (!confirm('恢复会把备份里的内容导入（不会删除现在已有的）。确定吗？')) return;
+  var reader = new FileReader();
+  reader.onload = function (e) {
+    var data;
+    try { data = JSON.parse(e.target.result); } catch (err) { toast('文件格式不对'); return; }
+    var jobs = [];
+    BACKUP_KEYS.forEach(function (k) {
+      (data[k] || []).forEach(function (rec) {
+        var r = Object.assign({}, rec);
+        delete r.id; delete r.createdAt; delete r.updatedAt;
+        jobs.push(Data.save(k, r));
+      });
+    });
+    if (!jobs.length) { toast('文件里没有可恢复的内容'); return; }
+    toast('正在恢复…');
+    Promise.all(jobs).then(function () { toast('恢复完成'); return loadAll(); })
+      .catch(function () { toast('恢复失败，检查网络后重试'); });
+  };
+  reader.readAsText(file);
+}
+// 点我的页头像，换成自己的照片（压成小图存 profile.avatarMe/Ta）
+function handleAvatarFile() {
+  var input = $('#avatarFile');
+  var file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  fileToThumb(file, function (data) {
+    if (!data) { toast('图片打不开，换一张试试'); return; }
+    var np = Object.assign({}, state.profile || defaults());
+    if (state.myRole === 'me') np.avatarMe = data; else np.avatarTa = data;
+    Data.save('profile', np).then(function () { toast('头像已更新'); return loadAll(); })
+      .catch(function () { toast('保存失败，检查网络后重试'); });
+  });
+}
+
 function clearLocalData() {
   if (!confirm('确定清空当前设备缓存的数据吗？')) return;
   Data.clearLocal();
@@ -1149,6 +1267,7 @@ function idbDel(key) {
 }
 function applyLogin(u) {
   var p = state.profile || defaults();
+  state.myRole = u.role;
   state.myName = u.role === 'me' ? (p.nicknameMe || '音宝') : (p.nicknameTa || '轩宝');
   localStorage.setItem('love_myname', state.myName);
   localStorage.setItem('love_user', u.user);
@@ -1234,12 +1353,15 @@ document.addEventListener('click', function (e) {
   t = e.target.closest('[data-collapse]'); if (t) { toggleCollapse(t); return; }
   t = e.target.closest('#btnSaveProfile'); if (t) { saveProfile(); return; }
   t = e.target.closest('#btnTestPush'); if (t) { testPush(); return; }
+  t = e.target.closest('#btnBackup'); if (t) { backupData(); return; }
+  t = e.target.closest('#btnRestore'); if (t) { $('#backupFile').click(); return; }
+  t = e.target.closest('#myAvatar'); if (t) { $('#avatarFile').click(); return; }
   t = e.target.closest('#btnCloudConfig'); if (t) { openCloudModal(); return; }
   t = e.target.closest('#btnRefresh'); if (t) { toast('正在刷新…'); loadAll(); return; }
   t = e.target.closest('#btnClearLocal'); if (t) { clearLocalData(); return; }
   t = e.target.closest('#btnLogin'); if (t) { doLogin(); return; }
   t = e.target.closest('#btnLogout'); if (t) { doLogout(); return; }
-  t = e.target.closest('#btnFight'); if (t) { startFight(); return; }
+  t = e.target.closest('[data-mood]'); if (t) { startFight(t.dataset.mood); return; }
   t = e.target.closest('#btnWant'); if (t) { submitWant(); return; }
   t = e.target.closest('#btnMakeup'); if (t) { makeup(); return; }
   t = e.target.closest('#btnAddPhoto'); if (t) { pickPhoto(); return; }
@@ -1275,6 +1397,8 @@ $('#wishInput').addEventListener('keydown', function (e) { if (e.key === 'Enter'
 $('#momentInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') addMoment(); });
 $('#photoFile').addEventListener('change', handlePhotoFile);
 $('#checkinPhoto').addEventListener('change', handleCheckinPhotoFile);
+$('#avatarFile').addEventListener('change', handleAvatarFile);
+$('#backupFile').addEventListener('change', handleBackupFile);
 
 // ---------- 启动 ----------
 (function init() {
