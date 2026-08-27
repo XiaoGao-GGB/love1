@@ -3,7 +3,6 @@
 // 统一通过 Data 接口读写，界面无感切换。
 // 集合映射：
 //   profile        CoupleProfile   我们（昵称、在一起的日子、主题语）
-//   timeline       TimelineEvent   时光轴事件
 //   messages       Message         留言（小纸条）
 //   anniversaries  Anniversary     纪念日
 //   wishes         Wish            心愿清单
@@ -27,7 +26,6 @@ function setLCConfig(c) {
 
 var COLUMNS = {
   profile: 'CoupleProfile',
-  timeline: 'TimelineEvent',
   messages: 'Message',
   anniversaries: 'Anniversary',
   wishes: 'Wish',
