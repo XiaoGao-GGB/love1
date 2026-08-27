@@ -10,7 +10,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>音宝和轩宝的情侣小网站</title>
-<link rel="stylesheet" href="css/style.css?v=22">
+<link rel="stylesheet" href="css/style.css?v=24">
 </head>
 <body>
 
@@ -42,7 +42,7 @@
 
   <main>
 
-    <!-- 首页：在一起天数 + 吵架和好卡 + 纪念日 -->
+    <!-- 首页：在一起天数 + 情绪卡 + 纪念日 -->
     <section id="page-home" class="page active">
       <div class="home-hero card">
         <div class="hero-main">
@@ -131,6 +131,20 @@
 
     <!-- 我的：设置 -->
     <section id="page-mine" class="page">
+      <div class="card form-card" style="text-align:center">
+        <div class="my-avatar-wrap">
+          <div id="myAvatar" class="my-avatar"></div>
+        </div>
+        <div class="hint">点一下头像，换成你的照片（对方能看到）</div>
+        <input type="file" id="avatarFile" accept="image/*" hidden>
+      </div>
+
+      <div class="card form-card">
+        <div class="form-title">对方最近活跃</div>
+        <div id="taActive" class="cloud-status"></div>
+        <div class="hint">TA 最后一次打开网站的时间。常用 app 打开，随时能知道 TA 有没有来过。</div>
+      </div>
+
       <div class="card form-card collapsible collapsed">
         <button class="collapse-head" data-collapse>
           <span>设置（昵称、提醒码等）</span>
@@ -169,6 +183,12 @@
 
       <div class="card form-card">
         <div class="form-title">数据</div>
+        <div class="row row-gap">
+          <button class="btn-ghost" id="btnBackup">备份数据</button>
+          <button class="btn-ghost" id="btnRestore">恢复数据</button>
+        </div>
+        <input type="file" id="backupFile" accept="application/json,.json" hidden>
+        <div class="hint">备份：把留言、照片、时光等全部存成一个文件到手机里，防丢。恢复：把备份内容导回来（不会删除现在的）。</div>
         <button class="btn-ghost danger" id="btnClearLocal">清空本地缓存数据</button>
         <button class="btn-ghost" id="btnLogout">退出登录</button>
         <div class="hint">只清除当前设备上的缓存，不影响云端和 TA 的设备。退出登录后下次打开需要重新输账号密码。</div>
@@ -209,9 +229,9 @@
 
 <div id="toast"></div>
 
-<script src="js/config.js?v=22"></script>
-<script src="js/store.js?v=22"></script>
-<script src="js/app.js?v=22"></script>
+<script src="js/config.js?v=24"></script>
+<script src="js/store.js?v=24"></script>
+<script src="js/app.js?v=24"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
