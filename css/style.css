@@ -104,6 +104,12 @@ html, body {
   margin: 0 auto;
 }
 
+/* ---------- TA 现在在哪 ---------- */
+.loc-main { font-size: 15px; color: var(--ink); margin-bottom: 4px; }
+.loc-main b { color: #e14b63; font-weight: 600; }
+.loc-meta { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+.loc-empty { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+
 .brand {
   display: flex;
   align-items: center;
