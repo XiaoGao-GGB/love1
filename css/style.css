@@ -378,6 +378,7 @@ main { padding: 12px 16px 96px; }
   border-radius: 10px;
   overflow: hidden;
   background: #e8f1f8;
+  cursor: pointer;
 }
 .checkin-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .checkin-body { flex: 1; min-width: 0; }
@@ -608,34 +609,6 @@ main { padding: 12px 16px 96px; }
 .lb-close, .lb-del { border: 0; border-radius: 10px; padding: 10px 20px; font-size: 13px; cursor: pointer; }
 .lb-close { background: #e8f1f8; color: var(--ink); }
 .lb-del { background: #f4d7d0; color: var(--danger); }
-
-/* ---------- 时光轴 ---------- */
-.timeline { position: relative; padding-left: 22px; }
-.timeline::before {
-  content: '';
-  position: absolute;
-  left: 7px;
-  top: 6px;
-  bottom: 6px;
-  width: 2px;
-  background: #cfe3f2;
-}
-.tl-item { position: relative; padding: 0 0 22px; }
-.tl-item::before {
-  content: '';
-  position: absolute;
-  left: -19px;
-  top: 5px;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: var(--primary);
-  border: 3px solid #eef6f1;
-}
-.tl-date { font-size: 12px; color: #8aa99b; margin-bottom: 3px; }
-.tl-title { font-size: 15px; font-weight: 600; }
-.tl-note { font-size: 13px; color: #5b7267; margin-top: 4px; }
-.tl-del { position: absolute; right: 0; top: 0; }
 
 /* ---------- 我的 ---------- */
 .form-card { padding: 16px 16px 18px; }
