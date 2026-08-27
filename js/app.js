@@ -1114,21 +1114,77 @@ function toggleCollapse(btn) {
 }
 
 // ---------- 登录 ----------
+// 登录凭证双备份：localStorage 容易被手机浏览器清掉（iPhone 防跟踪、微信内置浏览器等），
+// 这里把账号密码额外存一份到 IndexedDB（更抗清）。就算 localStorage 丢了，
+// 也能自动帮你登录，不用重新输密码。
+var _idb = null;
+var IDB_NAME = 'love_db';
+var CRED_KEY = 'love_cred';
+function idbOpen() {
+  if (_idb) return Promise.resolve(_idb);
+  return new Promise(function (resolve, reject) {
+    if (typeof indexedDB === 'undefined') { reject(new Error('no-indexeddb')); return; }
+    var req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = function () {
+      var db = req.result;
+      if (!db.objectStoreNames.contains('kv')) db.createObjectStore('kv');
+    };
+    req.onsuccess = function () { _idb = req.result; resolve(_idb); };
+    req.onerror = function () { reject(req.error); };
+  });
+}
+function idbGet(key) {
+  return idbOpen().then(function (db) {
+    return new Promise(function (resolve, reject) {
+      var r = db.transaction('kv', 'readonly').objectStore('kv').get(key);
+      r.onsuccess = function () { resolve(r.result); };
+      r.onerror = function () { reject(r.error); };
+    });
+  });
+}
+function idbSet(key, val) {
+  return idbOpen().then(function (db) {
+    return new Promise(function (resolve, reject) {
+      var tx = db.transaction('kv', 'readwrite');
+      tx.objectStore('kv').put(val, key);
+      tx.oncomplete = function () { resolve(); };
+      tx.onerror = function () { reject(tx.error); };
+    });
+  });
+}
+function idbDel(key) {
+  return idbOpen().then(function (db) {
+    return new Promise(function (resolve, reject) {
+      var tx = db.transaction('kv', 'readwrite');
+      tx.objectStore('kv').delete(key);
+      tx.oncomplete = function () { resolve(); };
+      tx.onerror = function () { reject(tx.error); };
+    });
+  });
+}
 function applyLogin(u) {
   var p = state.profile || defaults();
   state.myName = u.role === 'me' ? (p.nicknameMe || '音宝') : (p.nicknameTa || '轩宝');
   localStorage.setItem('love_myname', state.myName);
   localStorage.setItem('love_user', u.user);
+  idbSet(CRED_KEY, { user: u.user, pass: u.pass }).catch(function () {});
   var ov = $('#loginOverlay');
   if (ov) ov.hidden = true;
 }
 function tryAutoLogin() {
   var saved = localStorage.getItem('love_user');
-  if (!saved) return false;
-  var u = (window.LOGIN_USERS || []).filter(function (x) { return x.user === saved; })[0];
-  if (!u) return false;
-  applyLogin(u);
-  return true;
+  if (saved) {
+    var u = (window.LOGIN_USERS || []).filter(function (x) { return x.user === saved; })[0];
+    if (u) { applyLogin(u); return Promise.resolve(true); }
+  }
+  // localStorage 的记录被清了，去 IndexedDB 备份里找回凭证自动登录
+  return idbGet(CRED_KEY).then(function (cred) {
+    if (!cred || !cred.user || !cred.pass) return false;
+    var u = (window.LOGIN_USERS || []).filter(function (x) { return x.user === cred.user && x.pass === cred.pass; })[0];
+    if (!u) return false;
+    applyLogin(u);
+    return true;
+  }).catch(function () { return false; });
 }
 function doLogin() {
   var user = $('#loginUser').value.trim();
@@ -1142,7 +1198,8 @@ function doLogout() {
   if (!confirm('确定退出登录吗？')) return;
   localStorage.removeItem('love_user');
   localStorage.removeItem('love_myname');
-  location.reload();
+  // 等 IndexedDB 里的凭证删干净再刷新，否则退出会"失灵"（下次又自动登录）
+  idbDel(CRED_KEY).then(function () { location.reload(); }).catch(function () { location.reload(); });
 }
 
 // ---------- Toast ----------
@@ -1219,13 +1276,15 @@ $('#checkinPhoto').addEventListener('change', handleCheckinPhotoFile);
 
 // ---------- 启动 ----------
 (function init() {
-  tryAutoLogin();
-  render();
-  bindLongPress('.checkin-item', delCheckinFromEl);
-  updateClock();
-  setInterval(updateClock, 1000);
-  setInterval(refreshWeather, 30 * 60 * 1000);
-  loadAll().then(refreshWeather);
+  // 先自动登录（可能要异步去 IndexedDB 找凭证），登录完再开始渲染和拉数据
+  tryAutoLogin().then(function () {
+    render();
+    bindLongPress('.checkin-item', delCheckinFromEl);
+    updateClock();
+    setInterval(updateClock, 1000);
+    setInterval(refreshWeather, 30 * 60 * 1000);
+    return loadAll().then(refreshWeather);
+  });
 
   // 云端模式每 12 秒自动刷新一次，接近实时同步
   setInterval(function () {
